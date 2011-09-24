@@ -90,9 +90,13 @@ $(function () {
     });
 
     shape.hover(function () {
-      this.attr({'fill-opacity': 0.3});
+      if (!tile.selected && tile.isFree()) {
+        this.attr({'fill-opacity': 0.3});
+      }
     }, function () {
-      this.attr({'fill-opacity': 0});
+      if (!tile.selected) {
+        this.attr({'fill-opacity': 0});
+      }
     });
   }
 
