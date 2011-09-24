@@ -1,12 +1,11 @@
 /*global EventEmitter2*/
 var APP = {
   maps: {}
+, tiles: []
 , TOTAL_TILES: 144
 };
 
 (function () {
-  var _tiles;
-
   APP.event = new EventEmitter2();
 
   function _getDeck() {
@@ -72,21 +71,21 @@ var APP = {
     var i, tile;
 
     for (i = 1; i <= APP.TOTAL_TILES; i++) {
-      tiles[i] = APP.Tile({cardface: tiles[i]});
+      tiles[i] = APP.Tile({cardface: tiles[i], i: i});
     }
   }
 
   // first time
   APP.init = function () {
-    _tiles = _getDeck();
+    APP.tiles = _getDeck();
     APP.setup();
   };
 
   // for each game
   APP.setup = function () {
-    _tiles = _shuffle(_tiles);
-    _instantiateTiles(_tiles);
-    APP.event.emit('setup', _tiles);
+    APP.tiles = _shuffle(APP.tiles);
+    _instantiateTiles(APP.tiles);
+    APP.event.emit('setup', APP.tiles);
   };
 
   // when a tile is being clicked

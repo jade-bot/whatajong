@@ -1,37 +1,37 @@
 (function () {
-  var ALPHA_HIDE = 0.25;
+  function _getPosition(z, y, x) {
+    return ((APP.maps['default'][z] || {})[y] || {})[x];
+  }
 
   APP.Tile = function (options) {
     var Tile = options;
 
-
-    function _showFreedom() {
+    Tile.getTopTiles = function getTopTiles(Tile) {
+      return _.compact([ _getPosition(Tile.z + 1, Tile.y, Tile.x)
+                       , _getPosition(Tile.z + 1, Tile.y, Tile.x - 1)
+                       , _getPosition(Tile.z + 1, Tile.y + 1, Tile.x)
+                       , _getPosition(Tile.z + 1, Tile.y + 1, Tile.x - 1)]);
     }
 
-    function _hideFreedom() {
+    Tile.getLeftTiles = function getLeftTiles(Tile) {
+      return _.compact([ _getPosition(Tile.z, Tile.y, Tile.x - 2)
+                       , _getPosition(Tile.z, Tile.y + 1, Tile.x - 2)]);
     }
 
-    function _getPosition(z, y, x) {
-      return ((APP.maps['default'][z] || {})[y] || {})[x];
+    Tile.hasTopTiles = function hasTopTiles(Tile) {
+      return !!Tile.getTopTiles(Tile).length;
     }
 
-    function _hasTopTiles() {
-      return !!(_getPosition(Tile.z + 1, Tile.y, Tile.x)
-          || _getPosition(Tile.z + 1, Tile.y, Tile.x - 1)
-          || _getPosition(Tile.z + 1, Tile.y + 1, Tile.x)
-          || _getPosition(Tile.z + 1, Tile.y + 1, Tile.x - 1));
+    Tile.hasLeftTiles = function hasLeftTiles(Tile) {
+      return !!Tile.getLeftTiles(Tile).length;
     }
 
-    function _hasLeftTiles() {
-      return !!(_getPosition(Tile.z, Tile.y, Tile.x - 2) || _getPosition(Tile.z, Tile.y + 1, Tile.x - 2));
-    }
-
-    function _hasRightTiles() {
+    Tile.hasRightTiles = function hasRightTiles(Tile) {
       return !!(_getPosition(Tile.z, Tile.y, Tile.x + 1) || _getPosition(Tile.z, Tile.y + 1, Tile.x + 1));
     }
 
     Tile.isFree = function () {
-      return !_hasTopTiles() && (!_hasLeftTiles() || !_hasRightTiles());
+      return !Tile.hasTopTiles(Tile) && (!Tile.hasLeftTiles(Tile) || !Tile.hasRightTiles(Tile));
     }
 
     Tile.setPosition = function (x, y, z) {

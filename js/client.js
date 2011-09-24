@@ -7,6 +7,7 @@ $(function () {
     , TILE_TWIDTH = TILE_WIDTH + SIDE_SIZE
     , COLUMNS = 8
     , ROWS = 15
+    , ALPHA_HIDE = 0.25
     , paper = Raphael(
         $('#canvas').get(0)
       , (ROWS * TILE_WIDTH) + (2 * SIDE_SIZE), (COLUMNS * TILE_HEIGHT) + (2 * SIDE_SIZE)
@@ -84,6 +85,40 @@ $(function () {
     set.push(left_side, bottom_side, body, shape, shadow_up, shadow_right, image);
 
     tile.svg = set;
+    tile.image = image;
+
+
+    function makeBetterVisibility(val) {
+      var left_tiles = tile.getLeftTiles(tile);
+
+      function hide(left_top, left) {
+        if (!left_top.is_deleted) {
+          APP.tiles[left_top].svg.attr({opacity: val ? ALPHA_HIDE : 1});
+          APP.tiles[left].image.attr({opacity: val ? 0 : 1});
+        }
+      }
+
+      if (left_tiles.length) {
+        // 1 level
+        _.each(left_tiles, function (left) {
+          var left_top_tiles = tile.getTopTiles(APP.tiles[left]);
+
+          _.each(left_top_tiles, function (left_top) {
+            hide(left_top, left);
+            // level 2
+            var left_top_top_tiles = tile.getTopTiles(APP.tiles[left_top]);
+            _.each(left_top_top_tiles, function (left_top_top) {
+              hide(left_top_top, left_top);
+              // level 3
+              var left_top_top_top_tiles = tile.getTopTiles(APP.tiles[left_top_top]);
+              _.each(left_top_top_tiles, function (left_top_top_top) {
+                hide(left_top_top_top, left_top_top);
+              });
+            });
+          });
+        });
+      }
+    }
 
     shape.click(function () {
       APP.event.emit('tile_clicked', tile);
@@ -93,10 +128,12 @@ $(function () {
       if (!tile.selected && tile.isFree()) {
         this.attr({'fill-opacity': 0.3});
       }
+      makeBetterVisibility(true);
     }, function () {
       if (!tile.selected) {
         this.attr({'fill-opacity': 0});
       }
+      makeBetterVisibility(false);
     });
   }
 
