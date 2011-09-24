@@ -1,7 +1,8 @@
-/*global EventEmitter2*/
+/*global EventEmitter2, MAPS*/
 var APP = {
   maps: {}
 , tiles: []
+, selected_tile: null
 , TOTAL_TILES: 144
 };
 
@@ -84,12 +85,51 @@ var APP = {
   // for each game
   APP.setup = function () {
     APP.tiles = _shuffle(APP.tiles);
+    APP.current_map = MAPS['default']();
     _instantiateTiles(APP.tiles);
     APP.event.emit('setup', APP.tiles);
   };
 
+  APP.isMatching = function (first_tile, second_tile) {
+    if (first_tile.slice(0, 1) === second_tile.slice(0, 1)) {
+      var is_honor = (first_tile.slice(0, 1) === "h")
+        , first_num = first_tile.slice(1, 2)
+        , second_num = second_tile.slice(1, 2);
+      // honor exception
+      if (is_honor) {
+        return (+first_num <= 4 && +second_num <= 4) || (+first_num > 4 && +second_num > 4);
+      } else {
+        return first_num === second_num;
+      }
+    } else {
+      return false;
+    }
+  };
+
   // when a tile is being clicked
-  APP.event.on('tile_clicked', function (tile) {
-    console.log(tile);
+  APP.event.on('tile.clicked', function (tile) {
+    if (tile.isFree()) {
+      // First selection
+      if (APP.selected_tile === null) {
+        APP.selected_tile = tile;
+        tile.selected = true;
+        APP.event.emit('tile.selected', tile);
+        // Second selection
+      } else if (APP.isMatching(APP.selected_tile.cardface, tile.cardface) && APP.selected_tile.i !== tile.i) {
+        // delete the tiles
+        tile['delete']();
+        APP.selected_tile['delete']();
+
+        APP.selected_tile = null;
+        APP.remainingTiles -= 2;
+        // don't match or the same tile
+      } else {
+        APP.event.emit('tile.unselected', tile);
+        APP.event.emit('tile.unselected', APP.selected_tile);
+        tile.selected = false;
+        APP.selected_tile.selected = false;
+        APP.selected_tile = null;
+      }
+    }
   });
 }());

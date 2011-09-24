@@ -1,6 +1,6 @@
 (function () {
   function _getPosition(z, y, x) {
-    return ((APP.maps['default'][z] || {})[y] || {})[x];
+    return ((APP.current_map[z] || {})[y] || {})[x];
   }
 
   APP.Tile = function (options) {
@@ -32,6 +32,15 @@
 
     Tile.isFree = function () {
       return !Tile.hasTopTiles(Tile) && (!Tile.hasLeftTiles(Tile) || !Tile.hasRightTiles(Tile));
+    }
+
+    Tile['delete'] = function () {
+      Tile.is_deleted = true;
+      APP.current_map[Tile.z][Tile.y][Tile.x] = null;
+      APP.current_map[Tile.z][Tile.y][Tile.x - 1] = null;
+      APP.current_map[Tile.z][Tile.y + 1][Tile.x] = null;
+      APP.current_map[Tile.z][Tile.y + 1][Tile.x - 1] = null;
+      APP.event.emit('tile.deleted', Tile);
     }
 
     Tile.setPosition = function (x, y, z) {
