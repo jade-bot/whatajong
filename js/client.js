@@ -12,12 +12,40 @@ $(function () {
       , (ROWS * TILE_WIDTH) + (2 * SIDE_SIZE), (COLUMNS * TILE_HEIGHT) + (2 * SIDE_SIZE)
       );
 
+  function getImageLocation(cardface) {
+    var type = cardface.slice(0, 1)
+      , number = cardface.slice(1, 2);
+
+    switch (type) {
+    case 'b':
+      return {y: 0, x: (+number - 1) * TILE_WIDTH};
+    case 'c':
+      return {y: TILE_HEIGHT, x: (+number - 1) * TILE_WIDTH};
+    case 'o':
+      return {y: 2 * TILE_HEIGHT, x: (+number - 1) * TILE_WIDTH};
+    case 'h':
+      return {y: 3 * TILE_HEIGHT, x: (+number - 1) * TILE_WIDTH};
+    case 'w':
+      return {y: 4 * TILE_HEIGHT, x: (+number + 2) * TILE_WIDTH};
+    case 'd':
+      switch (number) {
+      case 'c':
+        return {y: 4 * TILE_HEIGHT, x: 0};
+      case 'f':
+        return {y: 4 * TILE_HEIGHT, x: TILE_WIDTH};
+      case 'p':
+        return {y: 4 * TILE_HEIGHT, x: 2 * TILE_WIDTH};
+      }
+    }
+  }
+
   function renderTile(tile) {
     var x = (tile.x - 1) * 45 / 2
       , y = tile.y * 65 / 2
       , z = tile.z
       , shadow_attr = {stroke: '', fill: '#000', 'fill-opacity': 0.1}
       , set = paper.set()
+      , image_loc = getImageLocation(tile.cardface)
       , left_side, bottom_side, body, shape, shadow_right, shadow_up, image;
 
     x = z ? x + (z * SIDE_SIZE) : x;
@@ -30,7 +58,7 @@ $(function () {
                              , 'L', x, y + TILE_THEIGHT].join(' '));
     body = paper.path([ 'M', x + SIDE_SIZE, y, 'L', x + TILE_TWIDTH, y, 'L', x + TILE_TWIDTH, y + TILE_HEIGHT
                       , 'L', x + SIDE_SIZE, y + TILE_HEIGHT, 'L', x + SIDE_SIZE, y].join(' '));
-    image = paper.image("tiles.png", x + SIDE_SIZE, y, TILE_WIDTH * 9, TILE_HEIGHT * 5);
+    image = paper.image("tiles.png", x + SIDE_SIZE - image_loc.x, y - image_loc.y, TILE_WIDTH * 9, TILE_HEIGHT * 5);
     shape = paper.path([ 'M', x, y + SIDE_SIZE, 'L', x + SIDE_SIZE, y, 'L', x + TILE_TWIDTH, y
                        , 'L', x + TILE_TWIDTH, y + TILE_HEIGHT, 'L', x + TILE_WIDTH, y + TILE_THEIGHT
                        , 'L', x, y + TILE_THEIGHT, 'L', x, y + SIDE_SIZE].join(' '));
@@ -68,8 +96,9 @@ $(function () {
     });
   }
 
-  function drawBoard() {
+  function drawBoard(tiles) {
     var map = APP.maps['default']
+      , i = 0
       , same_as_prev, same_as_above, z, y, x;
 
     for (z = 0; z < map.length; z++) {
@@ -78,7 +107,9 @@ $(function () {
           same_as_prev = map[z][y][x + 1] ? map[z][y][x + 1] === map[z][y][x] : false;
           same_as_above = map[z][y - 1] ? map[z][y - 1][x] === map[z][y][x] : false;
           if (map[z][y][x] && !same_as_prev && !same_as_above) {
-            renderTile({x: x, y: y, z: z});
+            i++;
+            tiles[i].setPosition(x, y, z);
+            renderTile(tiles[i]);
           }
         }
       }
@@ -86,8 +117,7 @@ $(function () {
   }
 
   // init
-  APP.event.on('setup', function (cards) {
-    console.log(cards);
-    drawBoard();
+  APP.event.on('setup', function (tiles) {
+    drawBoard(tiles);
   });
 });

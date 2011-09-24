@@ -68,6 +68,14 @@ var APP = {
     return temp_arr;
   }
 
+  function _instantiateTiles(tiles) {
+    var i, tile;
+
+    for (i = 1; i <= APP.TOTAL_TILES; i++) {
+      tiles[i] = APP.Tile({cardface: tiles[i]});
+    }
+  }
+
   // first time
   APP.init = function () {
     _tiles = _getDeck();
@@ -77,6 +85,7 @@ var APP = {
   // for each game
   APP.setup = function () {
     _tiles = _shuffle(_tiles);
+    _instantiateTiles(_tiles);
     APP.event.emit('setup', _tiles);
   };
 
