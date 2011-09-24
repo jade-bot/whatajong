@@ -37,6 +37,7 @@
                                  , 'L', x, y + TILE_THEIGHT].join(' '));
         body = paper.path([ 'M', x + SIDE_SIZE, y, 'L', x + TILE_TWIDTH, y, 'L', x + TILE_TWIDTH, y + TILE_HEIGHT
                           , 'L', x + SIDE_SIZE, y + TILE_HEIGHT, 'L', x + SIDE_SIZE, y].join(' '));
+        c = paper.image("tiles.png", x + SIDE_SIZE, y, TILE_WIDTH * 9, TILE_HEIGHT * 5);
         shape = paper.path([ 'M', x, y + SIDE_SIZE, 'L', x + SIDE_SIZE, y, 'L', x + TILE_TWIDTH, y
                            , 'L', x + TILE_TWIDTH, y + TILE_HEIGHT, 'L', x + TILE_WIDTH, y + TILE_THEIGHT
                            , 'L', x, y + TILE_THEIGHT, 'L', x, y + SIDE_SIZE].join(' '));
@@ -44,10 +45,17 @@
         bottom_side.attr({fill: '#FF9966', stroke: ''});
         body.attr({fill: '#FEE1A9', stroke: ''});
         shape.attr({stroke: '#664433', 'stroke-width': 2, cursor: 'pointer', fill: '#fff', 'fill-opacity': 0});
-        c = paper.image("tiles.png", x + SIDE_SIZE, y, TILE_WIDTH * 9, TILE_HEIGHT * 5);
         c.attr({'clip-rect': [x + SIDE_SIZE, y, TILE_WIDTH, TILE_HEIGHT]});
 
         console.log(Date.now() - now);
+        shape.click(function () {
+          this.attr({'fill-opacity': 0.6, fill: '#FFAA33'});
+        });
+        shape.hover(function () {
+          this.attr({'fill-opacity': 0.3});
+        }, function () {
+          this.attr({'fill-opacity': 0});
+        });
 
         set.push(left_side, bottom_side, body, shape, shadow_up, shadow_right);
       });
