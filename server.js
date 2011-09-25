@@ -52,6 +52,20 @@ io.sockets.on('connection', function (socket) {
   socket.on('client.connected', function (fn) {
     fn({tiles: APP.tiles, current_map: APP.current_map});
   });
+
+  // mouse.js
+  socket.on('zpeak', function (data) {
+    socket.emit('zpeak', data);
+  });
+
+  socket.on('mouse.move', function (data) {
+    data.id = socket.id;
+    io.sockets.emit('mouse.move', data);
+  });
+
+  socket.on('disconnect', function () {
+    io.sockets.emit('close', {id: socket.id});
+  });
 });
 
 function _getDeck() {
