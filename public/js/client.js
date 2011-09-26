@@ -9,18 +9,31 @@ $(function () {
     , COLUMNS = 8
     , ROWS = 15
     , ALPHA_HIDE = 0.25
-    , paper = Raphael(
-        $('#canvas').get(0)
-      , (ROWS * TILE_WIDTH) + (2 * SIDE_SIZE), (COLUMNS * TILE_HEIGHT) + (2 * SIDE_SIZE)
-      )
-    , svgs = [], images = [], shapes = [];
+    , CANVAS_WIDTH = (ROWS * TILE_WIDTH) + (2 * SIDE_SIZE)
+    , CANVAS_HEIGHT = (COLUMNS * TILE_HEIGHT) + (2 * SIDE_SIZE)
+    , paper = Raphael($('#canvas').get(0), CANVAS_WIDTH, CANVAS_HEIGHT)
+    , svgs = [], images = [], shapes = [], shadows = [];
 
+  $('#container').css('width', CANVAS_WIDTH);
   $('#restart').click(function () {
     socket.emit('restart');
   });
 
+  function _formatTime(val) {
+    var hours = val / 3600 | 0
+      , minutes = (val - (hours * 3600)) / 60 | 0
+      , seconds = val - (hours * 3600) - (minutes * 60)
+      , hours_s = hours < 10 ? "0" + hours : hours
+      , minutes_s = minutes < 10 ? "0" + minutes : minutes
+      , seconds_s = seconds < 10 ? "0" + seconds : seconds;
+
+    hours_s = hours === 0 ? "" : hours_s + ":";
+
+    return hours_s + minutes_s + ":" + seconds_s;
+  }
+
   function onSetup(APP) {
-    var TILE = Tile(APP.current_map, socket);
+    var TILE = Tile(APP.current_map);
 
     function updateTileState(cb) {
       return function (tile) {
@@ -36,6 +49,76 @@ $(function () {
       };
     }
 
+    function setShadows(tile) {
+      var shadow = shadows[tile.i]
+        , up = TILE.getUpTiles(tile)
+        , right = TILE.getRightTiles(tile)
+        , some
+        , has_living_up = false
+        , has_living_right = false;
+
+      // init
+      shadow.up.show();
+      shadow.right.show();
+      _.each(['up_both', 'right_both', 'up_climb', 'right_climb'], function (el) {
+        shadow[el].hide();
+      });
+
+      // check up
+      _.each(up, function (el) {
+        if (!APP.tiles[el].is_deleted) {
+          shadow.up.hide();
+          has_living_up = true;
+        }
+      });
+
+      // check right
+      _.each(right, function (el) {
+        if (!APP.tiles[el].is_deleted) {
+          shadow.right.hide();
+          has_living_right = true;
+        }
+      });
+
+      // check right-up
+      if (!has_living_up) {
+        shadow.up_both.show();
+        shadow.up_climb.show();
+        some = _.some(right, function (el) {
+          var some = _.some(TILE.getUpTiles(APP.tiles[el]), function (el) {
+            return !APP.tiles[el].is_deleted;
+          });
+
+          return some;
+        });
+
+        if (!some) {
+          shadow.up_climb.hide();
+        } else {
+          shadow.up_both.hide();
+        }
+      }
+
+      // check up-right
+      if (!has_living_right) {
+        shadow.right_both.show();
+        shadow.right_climb.show();
+        some = _.some(up, function (el) {
+          var some = _.some(TILE.getRightTiles(APP.tiles[el]), function (el) {
+            return !APP.tiles[el].is_deleted;
+          });
+
+          return some;
+        });
+
+        if (!some) {
+          shadow.right_climb.hide();
+        } else {
+          shadow.right_both.hide();
+        }
+      }
+    }
+
     function makeBetterVisibility(tile, val) {
       var left_tiles = TILE.getLeftTiles(tile);
 
@@ -46,7 +129,7 @@ $(function () {
         }
       }
 
-      if (left_tiles.length && TILE.isFree(tile)) {
+      if (left_tiles.length) {
         // 1 level
         _.each(left_tiles, function (left) {
           var left_top_tiles = TILE.getTopTiles(APP.tiles[left]);
@@ -95,17 +178,27 @@ $(function () {
       }
     }
 
-    function renderTile(tile) {
-      var x = (tile.x - 1) * 45 / 2 | 0
-        , y = tile.y * 65 / 2 | 0
-        , z = tile.z
-        //, shadow_attr = {stroke: '', fill: '#000', 'fill-opacity': 0.1}
-        , set = paper.set()
-        , image_loc = getImageLocation(tile.cardface)
-        , left_side, bottom_side, body, shape, /*shadow_right, shadow_up,*/ image;
+    function _getRealCoordinates(tile) {
+      var x = (tile.x - 1) * TILE_WIDTH / 2 | 0
+        , y = SIDE_SIZE + (tile.y * TILE_HEIGHT / 2 | 0)
+        , z = tile.z;
 
       x = z ? x + (z * SIDE_SIZE) : x;
-      y = SIDE_SIZE + (z ? y - (z * SIDE_SIZE) : y);
+      y = z ? y - (z * SIDE_SIZE) : y;
+
+      return {x: x, y: y};
+    }
+
+    function renderTile(tile) {
+      var coords = _getRealCoordinates(tile)
+        , x = coords.x
+        , y = coords.y
+        , z = tile.z
+        , shadow_attr = {stroke: '', fill: '#000', 'fill-opacity': 0.1}
+        , set = paper.set()
+        , image_loc = getImageLocation(tile.cardface)
+        , left_side, bottom_side, body, shape, shadow_right, shadow_up
+        , shadow_up_climb, shadow_right_climb, shadow_up_both, shadow_right_both, image;
 
       left_side = paper.path([ 'M', x, y + SIDE_SIZE, 'L', x + SIDE_SIZE, y, 'L', x + SIDE_SIZE, y + TILE_HEIGHT
                              , 'L', x, y + TILE_THEIGHT, 'L', x, y + SIDE_SIZE].join(' '));
@@ -118,13 +211,25 @@ $(function () {
       shape = paper.path([ 'M', x, y + SIDE_SIZE, 'L', x + SIDE_SIZE, y, 'L', x + TILE_TWIDTH, y
                          , 'L', x + TILE_TWIDTH, y + TILE_HEIGHT, 'L', x + TILE_WIDTH, y + TILE_THEIGHT
                          , 'L', x, y + TILE_THEIGHT, 'L', x, y + SIDE_SIZE].join(' '));
-      //shadow_up = paper.path([ 'M', x + SIDE_SIZE, y, 'L', x + (2 * SIDE_SIZE), y - SIDE_SIZE
-      //                       , 'L', x + TILE_TWIDTH - SIDE_SIZE, y - SIDE_SIZE, 'L', x + TILE_TWIDTH - SIDE_SIZE, y
-      //                       , 'L', x + SIDE_SIZE, y].join(' '));
-      //shadow_right = paper.path([ 'M', x + TILE_TWIDTH, y + SIDE_SIZE, 'L', x + TILE_TWIDTH + SIDE_SIZE, y + SIDE_SIZE
-      //                          , 'L', x + TILE_TWIDTH + SIDE_SIZE, y + TILE_HEIGHT - SIDE_SIZE
-      //                          , 'L', x + TILE_TWIDTH, y + TILE_HEIGHT, 'L', x + TILE_TWIDTH, y + SIDE_SIZE
-      //                          ].join(' '));
+      shadow_up = paper.path([ 'M', x + SIDE_SIZE, y, 'L', x + (2 * SIDE_SIZE), y - SIDE_SIZE
+                             , 'L', x + TILE_TWIDTH - SIDE_SIZE, y - SIDE_SIZE, 'L', x + TILE_TWIDTH - SIDE_SIZE, y
+                             , 'L', x + SIDE_SIZE, y].join(' '));
+      shadow_up_climb = paper.path([ 'M', x + TILE_TWIDTH - SIDE_SIZE, y - SIDE_SIZE, 'L', x + TILE_TWIDTH, y - SIDE_SIZE * 2
+                                   , 'L', x + TILE_TWIDTH, y, 'L', x + TILE_TWIDTH - SIDE_SIZE, y
+                                   , 'L', x + TILE_TWIDTH - SIDE_SIZE, y - SIDE_SIZE].join(' '));
+      shadow_right_climb = paper.path([ 'M', x + TILE_TWIDTH, y, 'L', x + TILE_TWIDTH + 2 * SIDE_SIZE, y
+                                      , 'L', x + TILE_TWIDTH + SIDE_SIZE, y + SIDE_SIZE, 'L', x + TILE_TWIDTH, y + SIDE_SIZE
+                                      , 'L', x + TILE_TWIDTH, y].join(' '));
+      shadow_up_both = paper.path([ 'M', x + TILE_TWIDTH - SIDE_SIZE, y - SIDE_SIZE, 'L', x + TILE_TWIDTH + SIDE_SIZE, y - SIDE_SIZE
+                                  , 'L', x + TILE_TWIDTH, y, 'L', x + TILE_TWIDTH - SIDE_SIZE, y
+                                  , 'L', x + TILE_TWIDTH - SIDE_SIZE, y - SIDE_SIZE].join(' '));
+      shadow_right_both = paper.path([ 'M', x + TILE_TWIDTH, y, 'L', x + TILE_TWIDTH + SIDE_SIZE, y - SIDE_SIZE
+                                     , 'L', x + TILE_TWIDTH + SIDE_SIZE, y + SIDE_SIZE, 'L', x + TILE_TWIDTH, y + SIDE_SIZE
+                                     , 'L', x + TILE_TWIDTH, y - SIDE_SIZE].join(' '));
+      shadow_right = paper.path([ 'M', x + TILE_TWIDTH, y + SIDE_SIZE, 'L', x + TILE_TWIDTH + SIDE_SIZE, y + SIDE_SIZE
+                                , 'L', x + TILE_TWIDTH + SIDE_SIZE, y + TILE_HEIGHT - SIDE_SIZE
+                                , 'L', x + TILE_TWIDTH, y + TILE_HEIGHT, 'L', x + TILE_TWIDTH, y + SIDE_SIZE
+                                ].join(' '));
 
       left_side.attr({fill: '#FFBB89', stroke: ''});
       bottom_side.attr({fill: '#FF9966', stroke: ''});
@@ -132,17 +237,26 @@ $(function () {
       image.attr({'clip-rect': [x + SIDE_SIZE, y, TILE_WIDTH, TILE_HEIGHT]});
       shape.attr({stroke: '#664433', 'stroke-width': 2, cursor: 'pointer', fill: '#fff', 'fill-opacity': 0});
 
-      // shadow attr
-      //$.each([shadow_up, shadow_right], function (i, el) {
-      //  el.attr(shadow_attr);
-      //});
+      $.each([ shadow_up, shadow_right, shadow_up_climb, shadow_right_climb
+             , shadow_up_both, shadow_right_both], function (i, el) {
+        el.attr(shadow_attr);
+      });
 
-      set.push(left_side, bottom_side, body, shape, /*shadow_up, shadow_right, */image);
+      set.push(left_side, bottom_side, body, image, shape
+              , shadow_up, shadow_right, shadow_up_climb, shadow_right_climb
+              , shadow_up_both, shadow_right_both);
 
       svgs[tile.i] = set;
       images[tile.i] = image;
       shapes[tile.i] = shape;
-
+      shadows[tile.i] = {
+        up: shadow_up
+      , right: shadow_right
+      , up_climb: shadow_up_climb
+      , right_climb: shadow_right_climb
+      , up_both: shadow_up_both
+      , right_both: shadow_right_both
+      };
 
       shape.click(function () {
         socket.emit('tile.clicked', tile);
@@ -162,21 +276,12 @@ $(function () {
     }
 
     function drawBoard(tiles) {
-      var map = APP.current_map
-        , i = 0
-        , same_as_prev, same_as_above, z, y, x;
+      var i, tile;
 
-      for (z = 0; z < map.length; z++) {
-        for (y = 0; y < map[z].length; y++) {
-          for (x = map[z][y].length - 1; x > 0 ; x--) {
-            same_as_prev = map[z][y][x + 1] ? map[z][y][x + 1] === map[z][y][x] : false;
-            same_as_above = map[z][y - 1] ? map[z][y - 1][x] === map[z][y][x] : false;
-            if (map[z][y][x] && !same_as_prev && !same_as_above) {
-              i++;
-              TILE.setPosition(tiles[i], x, y, z);
-              renderTile(tiles[i]);
-            }
-          }
+      for (i = 1; i <= tiles.length; i++) {
+        if (tiles[i] && !tiles[i].is_deleted) {
+          renderTile(tiles[i]);
+          setShadows(tiles[i]);
         }
       }
     }
@@ -189,20 +294,104 @@ $(function () {
 
     socket.on('tile.unselected', updateTileState(function (tile) {
       shapes[tile.i].attr({fill: '#FFFFFF', 'fill-opacity': 0});
+      console.log('shaking');
+      svgs[tile.i].animate({
+        '20%': {translation: '3 0'}
+      , '40%': {translation: '-3 0'}
+      , '60%': {translation: '3 0'}
+      , '80%': {translation: '-3 0'}
+      , '100%': {translation: '0 0'}
+      }, 500);
     }));
 
-    socket.on('tile.deleted', updateTileState(function (tile) {
-      svgs[tile.i].remove();
-      makeBetterVisibility(tile, false);
-    }));
+    socket.on('tiles.deleted', function (data) {
+      var coords = _getRealCoordinates(data.tiles[0])
+        , $points = $('<span class="points">+' + data.points + '</span>');
+
+      $points.css({left: coords.x, top: coords.y});
+      $('#canvas').append($points);
+
+      $points.animate({top: '-=100', opacity: 0}, 2000, function () {
+        $points.remove();
+      });
+
+      function generateStar(tile) {
+        var star = paper.path('M0 30 L25 25 L30 0 L35 25 L60 30 L35 35 L30 60 L25 35 L0 30')
+          , coords = _getRealCoordinates(tile)
+          , x = coords.x + Math.random() * 50 - Math.random() * 50
+          , y = coords.y + Math.random() * 50 - Math.random() * 50
+          , move_y = Math.random() * 200
+          , move_x = Math.random() * 100 - Math.random() * 100
+          , scale = Math.random() / 2;
+
+        star
+          .scale(scale, scale)
+          .rotate(Math.random() * 360)
+          .translate(x, y)
+          .attr({fill: '#FF9', stroke: ''})
+          .animate({translation: [move_x, -move_y].join(' '), opacity: 0}, 2000, '>', function () {
+            star.remove();
+          });
+      }
+
+      function shadowing(tile) {
+        _.each(TILE.getLeftTiles(tile), function (el) {
+          if (!APP.tiles[el].is_deleted) {
+            setShadows(APP.tiles[el]);
+            _.each(TILE.getDownTiles(APP.tiles[el]), function (el) {
+              if (!APP.tiles[el].is_deleted) {
+                setShadows(APP.tiles[el]);
+              }
+            });
+          }
+        });
+
+        _.each(TILE.getDownTiles(tile), function (el) {
+          if (!APP.tiles[el].is_deleted) {
+            console.log('DOWN DELETED', APP.tiles[el]);
+            setShadows(APP.tiles[el]);
+            _.each(TILE.getLeftTiles(APP.tiles[el]), function (el) {
+              if (!APP.tiles[el].is_deleted) {
+                setShadows(APP.tiles[el]);
+              }
+            });
+          }
+        });
+      }
+
+      _.each(data.tiles, updateTileState(function (tile) {
+        _.times(5, function () {
+          generateStar(tile);
+        });
+
+        shadowing(tile);
+
+        svgs[tile.i].animate({opacity: 0}, 300, '>', function () {
+          svgs[tile.i].remove();
+          makeBetterVisibility(tile, false);
+        });
+      }));
+    });
 
     socket.on('map.changed', updateMapState(function (map) {
       APP.current_map = map;
-      TILE = Tile(APP.current_map, socket);
+      TILE = Tile(APP.current_map);
     }));
   }
 
   // init
   socket.emit('client.connected', onSetup);
   socket.on('setup', onSetup);
+  socket.on('num_pairs.changed', function (num_pairs) {
+    $('#num_pairs')
+      .animate({left: num_pairs < 13 ? 100 - (num_pairs * 100 / 12) : 0}, 300)
+      .text(num_pairs);
+  });
+  socket.on('tick', function (data) {
+    $('#time').text(_formatTime(data.time));
+    $('#points').text(data.points);
+  });
+
+  $('#time').text('00:00');
+  $('#points').text('0');
 });

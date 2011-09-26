@@ -2,9 +2,12 @@ var app, io
   , node_static = require('node-static')
   , file_server = new node_static.Server('./public')
   , APP = { tiles: []
+          , time: 0
+          , points: 250
           , selected_tile: null
           , TOTAL_TILES: 144
           }
+  , POINTS_PER_SECOND = 2
   , Tile;
 
 GLOBAL._ = require('underscore');
@@ -16,6 +19,7 @@ app = require('http').createServer(function (request, response) {
 });
 
 io = require('socket.io').listen(app);
+io.set('log level', 1);
 app.listen(3000);
 
 io.sockets.on('connection', function (socket) {
@@ -25,25 +29,55 @@ io.sockets.on('connection', function (socket) {
   });
 
   socket.on('tile.clicked', function (tile) {
+    var points;
+
     if (Tile.isFree(tile)) {
       // First selection
       if (APP.selected_tile === null) {
         APP.selected_tile = tile;
-        tile.selected = true;
-        io.sockets.emit('tile.selected', tile);
+        APP.tiles[tile.i].selected = true;
+        io.sockets.emit('tile.selected', APP.tiles[tile.i]);
         // Second selection
       } else if (APP.isMatching(APP.selected_tile.cardface, tile.cardface) && APP.selected_tile.i !== tile.i) {
         // delete the tiles
-        Tile['delete'](tile);
-        Tile['delete'](APP.selected_tile);
+        Tile['delete'](APP.tiles[tile.i]);
+        Tile['delete'](APP.tiles[APP.selected_tile.i]);
+        io.sockets.emit('map.changed', APP.current_map);
+
+        APP.remaining_tiles -= 2;
+        APP.num_pairs = APP.getNumPairs();
+        points = (POINTS_PER_SECOND * 3) + Math.ceil(
+                    (APP.TOTAL_TILES - APP.remaining_tiles) / APP.TOTAL_TILES * POINTS_PER_SECOND * 60
+                  );
+        APP.points += points;
+        io.sockets.emit('tiles.deleted', {
+          tiles: [
+            APP.tiles[tile.i]
+          , APP.tiles[APP.selected_tile.i]
+          ]
+        , points: points
+        });
 
         APP.selected_tile = null;
-        APP.remainingTiles -= 2;
+
+        if (!APP.num_pairs || !APP.remaining_tiles) {
+          // loose
+          if (!APP.num_pairs) {
+            io.sockets.emit('game.loose');
+          // win
+          } else {
+            io.sockets.emit('game.win');
+          }
+        }
+
+        io.sockets.emit('num_pairs.changed', APP.num_pairs);
         // don't match or the same tile
       } else {
-        io.sockets.emit('tile.unselected', APP.selected_tile);
-        io.sockets.emit('tile.unselected', tile);
-        tile.selected = false;
+        if (APP.selected_tile.i !== tile.i) {
+          io.sockets.emit('tile.unselected', APP.tiles[APP.selected_tile.i]);
+        }
+        io.sockets.emit('tile.unselected', APP.tiles[tile.i]);
+        APP.tiles[tile.i].selected = false;
         APP.selected_tile = null;
       }
     }
@@ -51,6 +85,8 @@ io.sockets.on('connection', function (socket) {
 
   socket.on('client.connected', function (fn) {
     fn({tiles: APP.tiles, current_map: APP.current_map});
+    socket.emit('num_pairs.changed', APP.num_pairs);
+    socket.emit('tick', {time: APP.time, points: APP.points});
   });
 
   // mouse.js
@@ -128,25 +164,77 @@ function _shuffle(tiles) {
 }
 
 function _instantiateTiles(tiles) {
-  var i, tile;
+  var map = APP.current_map
+    , i = 1
+    , same_as_prev, same_as_above, z, y, x;
 
-  for (i = 1; i <= APP.TOTAL_TILES; i++) {
-    tiles[i] = {cardface: tiles[i], i: i};
+  for (z = 0; z < map.length; z++) {
+    for (y = 0; y < map[z].length; y++) {
+      for (x = map[z][y].length - 1; x > 0 ; x--) {
+        same_as_prev = map[z][y][x + 1] ? map[z][y][x + 1] === map[z][y][x] : false;
+        same_as_above = map[z][y - 1] ? map[z][y - 1][x] === map[z][y][x] : false;
+        if (map[z][y][x] && !same_as_prev && !same_as_above) {
+          tiles[i] = {cardface: tiles[i], i: map[z][y][x], x: x, y: y, z: z};
+          i++;
+        }
+      }
+    }
   }
 }
 
-// first time
-APP.init = function () {
-  APP.setup();
-};
+function _eachSecond() {
+  APP.time++;
+  APP.points = APP.points <= 0 ? 0 : APP.points - POINTS_PER_SECOND;
+  io.sockets.emit('tick', {time: APP.time, points: APP.points});
+}
+
+APP.getNumPairs = function () {
+  var free_tiles = APP.getFreeTiles()
+    , num_pairs = 0
+    , i;
+
+  for (i = 0; i < free_tiles.length - 1; i++) {
+    if (APP.isMatching(free_tiles[i].cardface, free_tiles[i + 1].cardface)) {
+      i++;
+      num_pairs++;
+    }
+  }
+  return num_pairs;
+}
+
+APP.getFreeTiles = function () {
+  var free_tiles = [], i, current_tile;
+
+  for (i = 1; i <= APP.TOTAL_TILES; i++) {
+    current_tile = APP.tiles[i];
+
+    if (Tile.isFree(current_tile) && !current_tile.is_deleted) {
+      free_tiles.push(current_tile);
+    }
+  }
+
+  free_tiles = _.sortBy(free_tiles, function (el) {
+    return el.cardface;
+  });
+
+  return free_tiles;
+}
 
 // for each game
 APP.setup = function () {
   APP.tiles = _shuffle(_getDeck());
   APP.current_map = require('./maps/default')();
-  Tile = require('./public/js/tile').Tile(APP.current_map, io.sockets);
+  Tile = require('./public/js/tile').Tile(APP.current_map);
   _instantiateTiles(APP.tiles);
+  APP.tiles = _.sortBy(APP.tiles, function (el) {
+    return el && el.i;
+  });
+  APP.tiles.unshift(undefined);
   io.sockets.emit('setup', {tiles: APP.tiles, current_map: APP.current_map});
+  APP.num_pairs = APP.getNumPairs();
+  APP.remaining_tiles = APP.TOTAL_TILES;
+  io.sockets.emit('num_pairs.changed', APP.num_pairs);
+  APP.interval = setInterval(_eachSecond, 1000);
 };
 
 APP.isMatching = function (first_tile, second_tile) {
@@ -166,4 +254,5 @@ APP.isMatching = function (first_tile, second_tile) {
   }
 };
 
-APP.init();
+// start!
+APP.setup();

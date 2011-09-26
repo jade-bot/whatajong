@@ -1,4 +1,4 @@
-(typeof exports === 'undefined' ? this : exports).Tile = function (current_map, sockets) {
+(typeof exports === 'undefined' ? this : exports).Tile = function (current_map) {
   var TILE = {};
 
   function _getPosition(z, y, x) {
@@ -6,15 +6,30 @@
   }
 
   TILE.getTopTiles = function getTopTiles(tile) {
-    return _.compact([ _getPosition(tile.z + 1, tile.y, tile.x)
-                     , _getPosition(tile.z + 1, tile.y, tile.x - 1)
-                     , _getPosition(tile.z + 1, tile.y + 1, tile.x)
-                     , _getPosition(tile.z + 1, tile.y + 1, tile.x - 1)]);
+    return _.compact(_.uniq([ _getPosition(tile.z + 1, tile.y, tile.x)
+                            , _getPosition(tile.z + 1, tile.y, tile.x - 1)
+                            , _getPosition(tile.z + 1, tile.y + 1, tile.x)
+                            , _getPosition(tile.z + 1, tile.y + 1, tile.x - 1)]));
+  }
+
+  TILE.getDownTiles = function getDownTiles(tile) {
+    return _.compact(_.uniq([ _getPosition(tile.z, tile.y + 2, tile.x)
+                            , _getPosition(tile.z, tile.y + 2, tile.x - 1)]));
+  }
+
+  TILE.getUpTiles = function getUpTiles(tile) {
+    return _.compact(_.uniq([ _getPosition(tile.z, tile.y - 1, tile.x)
+                            , _getPosition(tile.z, tile.y - 1, tile.x - 1)]));
+  }
+
+  TILE.getRightTiles = function getRightTiles(tile) {
+    return _.compact(_.uniq([ _getPosition(tile.z, tile.y, tile.x + 1)
+                            , _getPosition(tile.z, tile.y + 1, tile.x + 1)]));
   }
 
   TILE.getLeftTiles = function getLeftTiles(tile) {
-    return _.compact([ _getPosition(tile.z, tile.y, tile.x - 2)
-                     , _getPosition(tile.z, tile.y + 1, tile.x - 2)]);
+    return _.compact(_.uniq([ _getPosition(tile.z, tile.y, tile.x - 2)
+                            , _getPosition(tile.z, tile.y + 1, tile.x - 2)]));
   }
 
   TILE.hasTopTiles = function hasTopTiles(tile) {
@@ -26,7 +41,7 @@
   }
 
   TILE.hasRightTiles = function hasRightTiles(tile) {
-    return !!(_getPosition(tile.z, tile.y, tile.x + 1) || _getPosition(tile.z, tile.y + 1, tile.x + 1));
+    return !!TILE.getRightTiles(tile).length;
   }
 
   TILE.isFree = function (tile) {
@@ -39,8 +54,6 @@
     current_map[tile.z][tile.y][tile.x - 1] = null;
     current_map[tile.z][tile.y + 1][tile.x] = null;
     current_map[tile.z][tile.y + 1][tile.x - 1] = null;
-    sockets.emit('tile.deleted', tile);
-    sockets.emit('map.changed', current_map);
   }
 
   TILE.setPosition = function (tile, x, y, z) {
