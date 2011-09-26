@@ -275,6 +275,21 @@ $(function () {
       });
     }
 
+    function onSelected(tile) {
+      shapes[tile.i].attr({fill: '#FFCC33', 'fill-opacity': 0.5});
+    }
+
+    function onUnselected(tile) {
+      shapes[tile.i].attr({fill: '#FFFFFF', 'fill-opacity': 0});
+      svgs[tile.i].animate({
+        '20%': {translation: '3 0'}
+      , '40%': {translation: '-6 0'}
+      , '60%': {translation: '6 0'}
+      , '80%': {translation: '-3 0'}
+      , '100%': {translation: '0 0'}
+      }, 500);
+    }
+
     function drawBoard(tiles) {
       var i, tile;
 
@@ -282,27 +297,17 @@ $(function () {
         if (tiles[i] && !tiles[i].is_deleted) {
           renderTile(tiles[i]);
           setShadows(tiles[i]);
+          if (tiles[i].selected) {
+            onSelected(tiles[i]);
+          }
         }
       }
     }
 
     drawBoard(APP.tiles);
 
-    socket.on('tile.selected', updateTileState(function (tile) {
-      shapes[tile.i].attr({fill: '#FFCC33', 'fill-opacity': 0.5});
-    }));
-
-    socket.on('tile.unselected', updateTileState(function (tile) {
-      shapes[tile.i].attr({fill: '#FFFFFF', 'fill-opacity': 0});
-      console.log('shaking');
-      svgs[tile.i].animate({
-        '20%': {translation: '3 0'}
-      , '40%': {translation: '-3 0'}
-      , '60%': {translation: '3 0'}
-      , '80%': {translation: '-3 0'}
-      , '100%': {translation: '0 0'}
-      }, 500);
-    }));
+    socket.on('tile.selected', updateTileState(onSelected));
+    socket.on('tile.unselected', updateTileState(onUnselected));
 
     socket.on('tiles.deleted', function (data) {
       var coords = _getRealCoordinates(data.tiles[0])

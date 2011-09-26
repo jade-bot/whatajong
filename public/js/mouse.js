@@ -1,5 +1,5 @@
 /*global io*/
-(function () {
+$(function () {
   var socket = io.connect('http://localhost')
     , timeouts = {};
 
@@ -16,7 +16,7 @@
 
   function move(data) {
     if (!$('#mouse_' + data.id).length) {
-      $('body').append('<span class="mouse" id="mouse_' + data.id
+      $('#canvas').append('<span class="mouse" id="mouse_' + data.id
                       + '"><span style="display:none;" class="chat"/></span>');
     }
 
@@ -25,13 +25,13 @@
     style.top = (data.y - 2) + 'px';
   };
 
-  $(document).mousemove(
+  $('#canvas').mousemove(
     ratelimit(function (e) {
       socket.emit('mouse.move', {
-        x: e.pageX
-      , y: e.pageY
-      , w: $(window).width()
-      , h: $(window).height()
+        x: e.pageX - $('#canvas').offset().left
+      , y: e.pageY - $('#canvas').offset().top
+      , w: $('#canvas').width()
+      , h: $('#canvas').height()
       });
     }, 40)
   );
@@ -45,4 +45,4 @@
       move(data);
     }
   });
-}());
+});

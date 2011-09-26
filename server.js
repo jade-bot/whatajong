@@ -78,6 +78,7 @@ io.sockets.on('connection', function (socket) {
         }
         io.sockets.emit('tile.unselected', APP.tiles[tile.i]);
         APP.tiles[tile.i].selected = false;
+        APP.tiles[APP.selected_tile.i].selected = false;
         APP.selected_tile = null;
       }
     }
