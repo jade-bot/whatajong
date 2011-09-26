@@ -1,4 +1,5 @@
-var app, io
+var app = require('./http')
+  , io
   , node_static = require('node-static')
   , file_server = new node_static.Server('./public')
   , APP = { tiles: []
@@ -12,15 +13,8 @@ var app, io
 
 GLOBAL._ = require('underscore');
 
-app = require('http').createServer(function (request, response) {
-  request.addListener('end', function () {
-    file_server.serve(request, response);
-  });
-});
-
 io = require('socket.io').listen(app);
 io.set('log level', 1);
-app.listen(3000);
 
 io.sockets.on('connection', function (socket) {
   // when a tile is being clicked
@@ -257,3 +251,4 @@ APP.isMatching = function (first_tile, second_tile) {
 
 // start!
 APP.setup();
+app.listen(3000);

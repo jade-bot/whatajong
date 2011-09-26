@@ -1,8 +1,13 @@
 {
+  "name": "Whatajong",
+  "version": "0.0.1",
   "private": true,
   "dependencies": {
     "node-static": "0.5.9",
     "socket.io": "0.8.4",
-    "underscore": "1.1.7"
+    "underscore": "1.1.7",
+    "express": "2.4.6",
+    "everyauth": "0.2.20",
+    "jade": "0.15.4"
   }
 }

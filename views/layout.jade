@@ -1,0 +1,23 @@
+!!! 5
+html
+  head
+    link(href='http://fonts.googleapis.com/css?family=Passero+One|Leckerli+One', rel='stylesheet', type='text/css')
+    meta(charset="utf-8")
+    title Whatajong
+    link(rel="stylesheet", href="/css/whatajong.css", type="text/css", media="screen")
+    - if (!everyauth.loggedIn)
+      script(src='http://static.ak.fbcdn.net/connect/en_US/core.js')
+    - if (room)
+      script(src="/js/vendor/jquery.js")
+      script(src="/js/vendor/raphael.js")
+      script(src="/js/vendor/underscore.js")
+      script(src="/socket.io/socket.io.js")
+      script(src="/js/mouse.js")
+      script(src="/js/tile.js")
+      script(src="/js/client.js")
+  body
+    #container
+      - if (everyauth.loggedIn)
+        a#logout(href='/logout') Logout
+      h1 Whatajong
+      != body

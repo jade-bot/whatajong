@@ -17,6 +17,7 @@ h1 {
 #container {
   margin: 0 auto;
   position: relative;
+  width: 691px;
 }
 
 #points {
