@@ -2,6 +2,8 @@
 
 This is an example of an html5 multiplayer game with nodejs and socket.io.
 
+[![](http://raw.github.com/masylum/whatajong/public/images/preview.png)]
+
 ## Installation
 
 ```bash
