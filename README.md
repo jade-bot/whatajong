@@ -1,22 +1,38 @@
-# Server
+# Whatajong
 
-# Global
+This is an example of an html5 multiplayer game with nodejs and socket.io.
 
-APP logic
-APP variables
-Tile logic
-tiles
-socket
-current_map
+## Installation
 
-# Tile
+```bash
+git clone https://github.com/masylm/whatajong
+npm install
+cp default.conf.js conf.js
+```
 
-current_map
-socket
+Edit the `conf.js` file with your specific configuration and you are ready to go!
 
-# Client
+## How does it work?
 
-Tile logic
-APP variables
-tiles
-current_map
+Half the game work in the client, and the other half in the server.
+Both parts are communciated via socket.io exchanging `events` and `state`.
+
+```
+.-----------.                   .-------------.
+| Server    |                   | Browser 1   |
++-----------+                   +-------------+
+|           |                   |             |
+|           | <=== Events ======| public/js/* |
+|           |                   |             |
+|           |                   '-------------'
+|           |
+| serverjs  |===== State (broadcast) ====>
+|           |
+|           |                   .-------------.
+|           |                   | Browser n   |
+|           |                   +-------------+
+|           |                   |             |
+|           | <=== Ecents ======| public/js/* |
+|           |                   |             |
+'-----------'                   '-------------'
+```

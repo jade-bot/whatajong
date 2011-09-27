@@ -1,7 +1,6 @@
-/*global io*/
+/*global socket*/
 $(function () {
-  var socket = io.connect('http://localhost')
-    , timeouts = {};
+  var timeouts = {};
 
   function ratelimit(fn, ms) {
     var last = (new Date()).getTime();

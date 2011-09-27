@@ -8,4 +8,11 @@
       img(style='border: 0px', src='https://si0.twimg.com/images/dev/buttons/sign-in-with-twitter-l.png')
 - else
   h2 Welcome #{everyauth.facebook.user.name}
-  a(href= '/sdaf') Play!
+  script
+    $(function () {
+      $('a#play').click(function () {
+        $(this).parent().submit();
+      });
+    });
+  form(action= '/play', method= 'POST')
+    a#play(href= '#') Play!

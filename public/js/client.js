@@ -1,7 +1,9 @@
 /*global Raphael, io, Tile*/
+
+var socket;
+
 $(function () {
-  var socket = io.connect('http://localhost')
-    , SIDE_SIZE = 8
+  var SIDE_SIZE = 8
     , TILE_HEIGHT = 65
     , TILE_WIDTH = 45
     , TILE_THEIGHT = TILE_HEIGHT + SIDE_SIZE
@@ -14,10 +16,9 @@ $(function () {
     , paper = Raphael($('#canvas').get(0), CANVAS_WIDTH, CANVAS_HEIGHT)
     , svgs = [], images = [], shapes = [], shadows = [];
 
+  socket = io.connect('http://localhost/' + $('#room_id').val());
+
   $('#container').css('width', CANVAS_WIDTH);
-  $('#restart').click(function () {
-    socket.emit('restart');
-  });
 
   function _formatTime(val) {
     var hours = val / 3600 | 0
@@ -32,19 +33,19 @@ $(function () {
     return hours_s + minutes_s + ":" + seconds_s;
   }
 
-  function onSetup(APP) {
-    var TILE = Tile(APP.current_map);
+  function initState(STATE) {
+    var TILE = Tile(STATE.current_map);
 
     function updateTileState(cb) {
       return function (tile) {
-        APP.tiles[tile.i] = tile;
+        STATE.tiles[tile.i] = tile;
         cb(tile);
       };
     }
 
     function updateMapState(cb) {
       return function (map) {
-        APP.current_map = map;
+        STATE.current_map = map;
         cb(map);
       };
     }
@@ -66,7 +67,7 @@ $(function () {
 
       // check up
       _.each(up, function (el) {
-        if (!APP.tiles[el].is_deleted) {
+        if (!STATE.tiles[el].is_deleted) {
           shadow.up.hide();
           has_living_up = true;
         }
@@ -74,7 +75,7 @@ $(function () {
 
       // check right
       _.each(right, function (el) {
-        if (!APP.tiles[el].is_deleted) {
+        if (!STATE.tiles[el].is_deleted) {
           shadow.right.hide();
           has_living_right = true;
         }
@@ -85,8 +86,8 @@ $(function () {
         shadow.up_both.show();
         shadow.up_climb.show();
         some = _.some(right, function (el) {
-          var some = _.some(TILE.getUpTiles(APP.tiles[el]), function (el) {
-            return !APP.tiles[el].is_deleted;
+          var some = _.some(TILE.getUpTiles(STATE.tiles[el]), function (el) {
+            return !STATE.tiles[el].is_deleted;
           });
 
           return some;
@@ -104,8 +105,8 @@ $(function () {
         shadow.right_both.show();
         shadow.right_climb.show();
         some = _.some(up, function (el) {
-          var some = _.some(TILE.getRightTiles(APP.tiles[el]), function (el) {
-            return !APP.tiles[el].is_deleted;
+          var some = _.some(TILE.getRightTiles(STATE.tiles[el]), function (el) {
+            return !STATE.tiles[el].is_deleted;
           });
 
           return some;
@@ -132,16 +133,16 @@ $(function () {
       if (left_tiles.length) {
         // 1 level
         _.each(left_tiles, function (left) {
-          var left_top_tiles = TILE.getTopTiles(APP.tiles[left]);
+          var left_top_tiles = TILE.getTopTiles(STATE.tiles[left]);
 
           _.each(left_top_tiles, function (left_top) {
             hide(left_top, left);
             // level 2
-            var left_top_top_tiles = TILE.getTopTiles(APP.tiles[left_top]);
+            var left_top_top_tiles = TILE.getTopTiles(STATE.tiles[left_top]);
             _.each(left_top_top_tiles, function (left_top_top) {
               hide(left_top_top, left_top);
               // level 3
-              var left_top_top_top_tiles = TILE.getTopTiles(APP.tiles[left_top_top]);
+              var left_top_top_top_tiles = TILE.getTopTiles(STATE.tiles[left_top_top]);
               _.each(left_top_top_tiles, function (left_top_top_top) {
                 hide(left_top_top_top, left_top_top);
               });
@@ -263,15 +264,15 @@ $(function () {
       });
 
       shape.hover(function () {
-        if (!APP.tiles[tile.i].selected && TILE.isFree(APP.tiles[tile.i])) {
+        if (!STATE.tiles[tile.i].selected && TILE.isFree(STATE.tiles[tile.i])) {
           this.attr({'fill-opacity': 0.3});
         }
-        makeBetterVisibility(APP.tiles[tile.i], true);
+        makeBetterVisibility(STATE.tiles[tile.i], true);
       }, function () {
-        if (!APP.tiles[tile.i].selected) {
+        if (!STATE.tiles[tile.i].selected) {
           this.attr({'fill-opacity': 0});
         }
-        makeBetterVisibility(APP.tiles[tile.i], false);
+        makeBetterVisibility(STATE.tiles[tile.i], false);
       });
     }
 
@@ -304,7 +305,7 @@ $(function () {
       }
     }
 
-    drawBoard(APP.tiles);
+    drawBoard(STATE.tiles);
 
     socket.on('tile.selected', updateTileState(onSelected));
     socket.on('tile.unselected', updateTileState(onUnselected));
@@ -320,44 +321,24 @@ $(function () {
         $points.remove();
       });
 
-      function generateStar(tile) {
-        var star = paper.path('M0 30 L25 25 L30 0 L35 25 L60 30 L35 35 L30 60 L25 35 L0 30')
-          , coords = _getRealCoordinates(tile)
-          , x = coords.x + Math.random() * 50 - Math.random() * 50
-          , y = coords.y + Math.random() * 50 - Math.random() * 50
-          , move_y = Math.random() * 200
-          , move_x = Math.random() * 100 - Math.random() * 100
-          , scale = Math.random() / 2;
-
-        star
-          .scale(scale, scale)
-          .rotate(Math.random() * 360)
-          .translate(x, y)
-          .attr({fill: '#FF9', stroke: ''})
-          .animate({translation: [move_x, -move_y].join(' '), opacity: 0}, 2000, '>', function () {
-            star.remove();
-          });
-      }
-
       function shadowing(tile) {
         _.each(TILE.getLeftTiles(tile), function (el) {
-          if (!APP.tiles[el].is_deleted) {
-            setShadows(APP.tiles[el]);
-            _.each(TILE.getDownTiles(APP.tiles[el]), function (el) {
-              if (!APP.tiles[el].is_deleted) {
-                setShadows(APP.tiles[el]);
+          if (!STATE.tiles[el].is_deleted) {
+            setShadows(STATE.tiles[el]);
+            _.each(TILE.getDownTiles(STATE.tiles[el]), function (el) {
+              if (!STATE.tiles[el].is_deleted) {
+                setShadows(STATE.tiles[el]);
               }
             });
           }
         });
 
         _.each(TILE.getDownTiles(tile), function (el) {
-          if (!APP.tiles[el].is_deleted) {
-            console.log('DOWN DELETED', APP.tiles[el]);
-            setShadows(APP.tiles[el]);
-            _.each(TILE.getLeftTiles(APP.tiles[el]), function (el) {
-              if (!APP.tiles[el].is_deleted) {
-                setShadows(APP.tiles[el]);
+          if (!STATE.tiles[el].is_deleted) {
+            setShadows(STATE.tiles[el]);
+            _.each(TILE.getLeftTiles(STATE.tiles[el]), function (el) {
+              if (!STATE.tiles[el].is_deleted) {
+                setShadows(STATE.tiles[el]);
               }
             });
           }
@@ -365,10 +346,6 @@ $(function () {
       }
 
       _.each(data.tiles, updateTileState(function (tile) {
-        _.times(5, function () {
-          generateStar(tile);
-        });
-
         shadowing(tile);
 
         svgs[tile.i].animate({opacity: 0}, 300, '>', function () {
@@ -379,19 +356,19 @@ $(function () {
     });
 
     socket.on('map.changed', updateMapState(function (map) {
-      APP.current_map = map;
-      TILE = Tile(APP.current_map);
+      STATE.current_map = map;
+      TILE = Tile(STATE.current_map);
     }));
   }
 
   // init
-  socket.emit('client.connected', onSetup);
-  socket.on('setup', onSetup);
+  socket.on('init_state', initState);
   socket.on('num_pairs.changed', function (num_pairs) {
     $('#num_pairs')
       .animate({left: num_pairs < 13 ? 100 - (num_pairs * 100 / 12) : 0}, 300)
       .text(num_pairs);
   });
+
   socket.on('tick', function (data) {
     $('#time').text(_formatTime(data.time));
     $('#points').text(data.points);
