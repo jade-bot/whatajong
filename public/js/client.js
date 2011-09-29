@@ -33,8 +33,24 @@ $(function () {
     return hours_s + minutes_s + ":" + seconds_s;
   }
 
+  function numPairsChanged(num_pairs) {
+    $('#num_pairs')
+      .animate({left: num_pairs < 13 ? 100 - (num_pairs * 100 / 12) : 0}, 300)
+      .text(num_pairs);
+  }
+
+  function addPlayer(data) {
+    if (data.id !== socket.socket.sessionid) {
+      $('#players').append('<span id="player_' + data.id + '">' + data.name 
+                         + '<img src="' + data.img + '" width="24" height="24" /></span>');
+    }
+  }
+
   function initState(STATE) {
     var TILE = Tile(STATE.current_map);
+
+    numPairsChanged(STATE.num_pairs);
+    _.each(STATE.players, addPlayer);
 
     function updateTileState(cb) {
       return function (tile) {
@@ -363,15 +379,25 @@ $(function () {
 
   // init
   socket.on('init_state', initState);
-  socket.on('num_pairs.changed', function (num_pairs) {
-    $('#num_pairs')
-      .animate({left: num_pairs < 13 ? 100 - (num_pairs * 100 / 12) : 0}, 300)
-      .text(num_pairs);
+  socket.on('num_pairs.changed', numPairsChanged);
+
+  socket.on('players.add', addPlayer);
+
+  socket.on('players.delete', function (data) {
+    if (data.id !== socket.socket.sessionid) {
+      $('#player_' + data.id).remove();
+    }
   });
 
   socket.on('tick', function (data) {
     $('#time').text(_formatTime(data.time));
     $('#points').text(data.points);
+  });
+
+  socket.emit('connect', {
+    _id: $('#user_id').val()
+  , name: $('#user_name').val()
+  , img: $('#score img').attr('src')
   });
 
   $('#time').text('00:00');

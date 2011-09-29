@@ -68,6 +68,7 @@ module.exports.spawn = function (options) {
               , time: 0
               , points: 250
               , selected_tile: null
+              , players: {}
               , started: false
               }
     , Tile, room;
@@ -226,12 +227,23 @@ module.exports.spawn = function (options) {
     });
 
     socket.on('disconnect', function () {
-      room.emit('close', {id: socket.id});
+      room.emit('players.delete', {id: socket.id});
+      delete STATE.players[socket.id];
+
+      if (!Object.keys(STATE.players).length) {
+        console.log('cleanup!');
+        options.db.rooms.remove({_id: require('mongojs').ObjectId(options.room_id)});
+      }
     });
 
-    if (!STATE.started) {
-      _initState();
-    }
-    socket.emit('init_state', STATE);
+    socket.on('connect', function (data) {
+      if (!STATE.started) {
+        _initState();
+      }
+      data.id = socket.id;
+      STATE.players[socket.id] = data;
+      socket.emit('init_state', STATE);
+      room.emit('players.add', data);
+    });
   });
 };

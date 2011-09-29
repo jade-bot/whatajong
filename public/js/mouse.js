@@ -16,7 +16,7 @@ $(function () {
   function move(data) {
     if (!$('#mouse_' + data.id).length) {
       $('#canvas').append('<span class="mouse" id="mouse_' + data.id
-                      + '"><span style="display:none;" class="chat"/></span>');
+                        + '">' + data.name + '</span>');
     }
 
     var style = $('#mouse_' + data.id)[0].style;
@@ -31,11 +31,12 @@ $(function () {
       , y: e.pageY - $('#canvas').offset().top
       , w: $('#canvas').width()
       , h: $('#canvas').height()
+      , name: $('#user_name').val()
       });
     }, 40)
   );
 
-  socket.on('close', function (data) {
+  socket.on('players.delete', function (data) {
     $('#mouse_' + data.id).remove();
   });
 

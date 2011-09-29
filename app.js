@@ -6,16 +6,40 @@ var node_static = require('node-static')
   , db = require('mongojs').connect(conf.mongodb.connection_url, ['users', 'rooms'])
   , io, http;
 
+function parseUser(network, data) {
+  var user = {};
+  switch (network) {
+  case 'facebook':
+    user.name = data.name;
+    user.picture = 'https://graph.facebook.com/' + data.id + '/picture';
+    break;
+  case 'twitter':
+    user.name = data.name;
+    user.picture = data.profile_image_url;
+    break;
+  }
+  user.network = network;
+  return user;
+}
+
 function findOrCreateUser(network) {
   return function (session, access_token, access_token_extra, metadata) {
     var promise = this.Promise();
+
     db.users.findOne({access_token: access_token, network: network}, function (error, user) {
-      if (!user) {
-        metadata.access_token = access_token;
-        metadata.network = network;
-        db.users.insert(metadata);
+      function onUser(error, user) {
+        if (Array.isArray(user)) {
+          user = user[0];
+        }
+        user.id = user._id;
+        promise.fulfill(user);
       }
-      promise.fulfill(user || metadata);
+
+      if (!user) {
+        db.users.insert(parseUser(network, metadata), onUser);
+      } else {
+        onUser(null, user);
+      }
     });
 
     return promise;
@@ -23,7 +47,7 @@ function findOrCreateUser(network) {
 }
 
 function authorize(req, res, next) {
-  if (!req.session.auth) {
+  if (!req.user) {
     if (!req.param('room_id')) {
       req.session.redirect = '/' + req.param('room_id');
     }
@@ -32,6 +56,10 @@ function authorize(req, res, next) {
     next();
   }
 }
+
+everyauth.everymodule.findUserById(function (_id, callback) {
+  db.users.findOne({_id: require('mongojs').ObjectId(_id)}, callback);
+});
 
 everyauth.facebook
   .appId(conf.facebook.appId)
@@ -59,14 +87,14 @@ http.configure(function () {
 });
 
 http.get('/', function (req, res, next) {
-  if (req.session.auth && req.session.redirect) {
+  if (req.user && req.session.redirect) {
     res.redirect(req.session.redirect);
     delete req.session.redirect;
-  } else if (req.session.auth) { // just redirected
-    db.rooms.insert({host: req.session.auth}, function (error, rooms) {
+  } else if (req.user) { // just redirected
+    db.rooms.insert({host_id: req.user._id}, function (error, rooms) {
       if (error) return next(error);
       // spawn a game
-      require('./game').spawn({io: io, room_id: rooms[0]._id.toString()});
+      require('./game').spawn({io: io, room_id: rooms[0]._id.toString(), db: db});
       res.redirect('/' + rooms[0]._id.toString());
     });
   } else {
@@ -80,15 +108,17 @@ http.get('/:room_id', authorize, function (req, res, next) {
     if (!room) {
       res.render('inexistant_room', {room: null, room_id: req.param('room_id')});
     } else {
-      res.render('room', {room: room});
+      res.render('room', {room: room, user: req.user});
     }
   });
 });
 
 everyauth.helpExpress(http);
 
-db.rooms.remove({}, function () {
-  io = require('socket.io').listen(http);
-  io.set('log level', 1);
-  http.listen(3000);
+db.users.remove({}, function () {
+  db.rooms.remove({}, function () {
+    io = require('socket.io').listen(http);
+    io.set('log level', 1);
+    http.listen(3000);
+  });
 });
