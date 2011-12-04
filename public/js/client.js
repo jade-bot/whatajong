@@ -18,8 +18,6 @@ $(function () {
 
   socket = io.connect('http://localhost/' + $('#room_id').val());
 
-  $('#container').css('width', CANVAS_WIDTH);
-
   function _formatTime(val) {
     var hours = val / 3600 | 0
       , minutes = (val - (hours * 3600)) / 60 | 0
@@ -39,18 +37,29 @@ $(function () {
       .text(num_pairs);
   }
 
-  function addPlayer(data) {
-    if (data.id !== socket.socket.sessionid) {
-      $('#players').append('<span id="player_' + data.id + '">' + data.name 
-                         + '<img src="' + data.img + '" width="24" height="24" /></span>');
-    }
+  /**
+   * Adds the new player to the room view
+   * unless its yourself
+   *
+   * @param {Object} user
+   */
+  function addPlayer(user) {
+    $('#players').append('<li id="player_' + user.id + '">'
+                       + '<span class="name">' + user.name + '</span>'
+                       + '<span class="points"></span>'
+                       + '<img src="' + user.img + '" width="48" height="48" />'
+                       + '</li>');
   }
 
   function initState(STATE) {
     var TILE = Tile(STATE.current_map);
 
     numPairsChanged(STATE.num_pairs);
-    _.each(STATE.players, addPlayer);
+    _.each(STATE.players, function (user) {
+      if (user.id !== socket.socket.sessionid) {
+        addPlayer(user);
+      }
+    });
 
     function updateTileState(cb) {
       return function (tile) {
@@ -397,7 +406,7 @@ $(function () {
   socket.emit('connect', {
     _id: $('#user_id').val()
   , name: $('#user_name').val()
-  , img: $('#score img').attr('src')
+  , img: $('#user_picture').val()
   });
 
   $('#time').text('00:00');

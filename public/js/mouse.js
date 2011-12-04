@@ -22,7 +22,7 @@ $(function () {
     var style = $('#mouse_' + data.id)[0].style;
     style.left = (data.x - 2) + 'px';
     style.top = (data.y - 2) + 'px';
-  };
+  }
 
   $('#canvas').mousemove(
     ratelimit(function (e) {

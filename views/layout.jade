@@ -21,7 +21,7 @@ html
       script(src="/js/client.js")
       script(src="/js/mouse.js")
   body
-    #container
+    #container.paused
       - if (everyauth.loggedIn)
         a#logout(href='/logout') Logout
       h1 Whatajong

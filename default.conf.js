@@ -10,4 +10,7 @@ module.exports = {
 , mongodb: {
     connection_url: 'mongodb://127.0.0.1:27017/whatajong'
   }
+, session: {
+    secret: 'charlieparker'
+  }
 };

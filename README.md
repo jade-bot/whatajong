@@ -38,3 +38,7 @@ Both parts are communciated via socket.io exchanging `events` and `state`.
 |           |                   |             |
 '-----------'                   '-------------'
 ```
+
+## MongoDB
+
+We use mongodb to store rooms and users.

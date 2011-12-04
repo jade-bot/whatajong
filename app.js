@@ -8,6 +8,7 @@ var node_static = require('node-static')
 
 function parseUser(network, data) {
   var user = {};
+
   switch (network) {
   case 'facebook':
     user.name = data.name;
@@ -18,6 +19,7 @@ function parseUser(network, data) {
     user.picture = data.profile_image_url;
     break;
   }
+
   user.network = network;
   return user;
 }
@@ -43,18 +45,22 @@ function findOrCreateUser(network) {
     });
 
     return promise;
-  }
+  };
 }
 
 function authorize(req, res, next) {
   if (!req.user) {
-    if (!req.param('room_id')) {
-      req.session.redirect = '/' + req.param('room_id');
+    if (req.param('room_id')) {
+      req.session.redirect = '/game/' + req.param('room_id');
     }
     res.redirect('/');
   } else {
     next();
   }
+}
+
+function isOwner(req) {
+  return req.user._id.toString() === req.param('room_id');
 }
 
 everyauth.everymodule.findUserById(function (_id, callback) {
@@ -78,37 +84,55 @@ http = express.createServer(
 , express.bodyParser()
 , express['static'](__dirname + "/public")
 , express.cookieParser()
-, express.session({secret: 'charlieparker'})
+, express.session({secret: conf.session.secret})
 , everyauth.middleware()
 );
+
+http.use(express.errorHandler(
+  http.set('env') === 'development'
+    ? {showStack: true, dumpExceptions: true}
+    : {}
+));
 
 http.configure(function () {
   http.set('view engine', 'jade');
 });
 
 http.get('/', function (req, res, next) {
-  if (req.user && req.session.redirect) {
+  var query;
+
+  if (req.user && req.session.redirect) { // logged + redirect
     res.redirect(req.session.redirect);
     delete req.session.redirect;
-  } else if (req.user) { // just redirected
-    db.rooms.insert({host_id: req.user._id}, function (error, rooms) {
-      if (error) return next(error);
-      // spawn a game
-      require('./game').spawn({io: io, room_id: rooms[0]._id.toString(), db: db});
-      res.redirect('/' + rooms[0]._id.toString());
-    });
+  } else if (req.user) {                  // just logged
+    res.redirect('/game/' + req.user._id);
   } else {
     res.render('index', {room: null});
   }
 });
 
-http.get('/:room_id', authorize, function (req, res, next) {
-  db.rooms.findOne({_id: require('mongojs').ObjectId(req.param('room_id'))}, function (error, room) {
+http.get('/game/:room_id', authorize, function (req, res, next) {
+  var query = {host_id: req.param('room_id')}
+    , room;
+
+  function renderRoom(room) {
+    res.render('room', {room: room, user: req.user});
+  }
+
+  db.rooms.findOne(query, function (error, room) {
     if (error) return next(error);
-    if (!room) {
-      res.render('inexistant_room', {room: null, room_id: req.param('room_id')});
+    if (room) {
+      renderRoom(room);
     } else {
-      res.render('room', {room: room, user: req.user});
+      if (isOwner(req)) {
+        db.rooms.insert(query, function (error, rooms) {
+          if (error) return next(error);
+          require('./game').spawn({io: io, room_id: rooms[0]._id.toString(), db: db});
+          renderRoom(rooms[0]);
+        });
+      } else {
+        res.render('inexistant_room', {room: room, user: req.user});
+      }
     }
   });
 });
@@ -118,7 +142,7 @@ everyauth.helpExpress(http);
 db.users.remove({}, function () {
   db.rooms.remove({}, function () {
     io = require('socket.io').listen(http);
-    io.set('log level', 1);
+    io.set('log level', 3);
     http.listen(3000);
   });
 });

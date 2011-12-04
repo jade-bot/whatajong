@@ -1,18 +1,7 @@
-- if (!everyauth.loggedIn)
-  #fb-login.fb_button(style='background-position: left -188px')
-    a.fb_button_medium(href='/auth/facebook')
-      span#fb_login_text.fb_button_text
-        | Sign in with Facebook
-  #twitter-login
-    a(href='/auth/twitter', style='border: 0px')
-      img(style='border: 0px', src='https://si0.twimg.com/images/dev/buttons/sign-in-with-twitter-l.png')
-- else
-  h2 Welcome #{everyauth.facebook.user.name}
-  script
-    $(function () {
-      $('a#play').click(function () {
-        $(this).parent().submit();
-      });
-    });
-  form(action= '/play', method= 'POST')
-    a#play(href= '#') Play!
+#fb-login.fb_button(style='background-position: left -188px')
+  a.fb_button_medium(href='/auth/facebook')
+    span#fb_login_text.fb_button_text
+      | Sign in with Facebook
+#twitter-login
+  a(href='/auth/twitter', style='border: 0px')
+    img(style='border: 0px', src='https://si0.twimg.com/images/dev/buttons/sign-in-with-twitter-l.png')

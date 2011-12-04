@@ -1,67 +1,9 @@
 var TOTAL_TILES = 144
-  , POINTS_PER_SECOND = 2;
+  , POINTS_PER_SECOND = 2
+  , _getDeck = require('./lib/get_deck')
+  , _shuffle = require('./lib/shuffle');
 
 GLOBAL._ = require('underscore');
-
-function _getDeck() {
-  var i, j, tiles = [];
-
-  for (i = 1; i <= 9; i++) {
-    //Bambu
-    for (j = 0; j < 4; j++) {
-      tiles[i + 9 * j] = "b" + i;
-    }
-    //Caracter
-    for (j = 0; j < 4; j++) {
-      tiles[36 + i + 9 * j] = "c" + i;
-    }
-    //Cercle
-    for (j = 0; j < 4; j++) {
-      tiles[72 + i + 9 * j] = "o" + i;
-    }
-  }
-
-  //Winds
-  for (i = 1; i <= 4; i++) {
-    tiles[108 + i] = "w1";
-    tiles[112 + i] = "w2";
-    tiles[116 + i] = "w3";
-    tiles[120 + i] = "w4";
-  }
-
-  //Honors
-  for (i = 1; i <= 8; i++) {
-    tiles[124 + i] = "h" + i;
-  }
-
-  //Dragons
-  for (i = 1; i <= 4; i++) {
-    tiles[132 + i] = "dc";
-    tiles[136 + i] = "df";
-    tiles[140 + i] = "dp";
-  }
-  return tiles;
-}
-
-function _shuffle(tiles) {
-  var temp_arr = [], i, r;
-  for (i = 1; i <= TOTAL_TILES; i++) {
-    r = Math.round(Math.random() * (TOTAL_TILES - i)) + 1;
-
-    // filter repeated tiles in a row
-    if (i > 3 && i < TOTAL_TILES - 4) {
-      if (tiles[r] === temp_arr[i - 1] || tiles[r] === temp_arr[i - 2] || tiles[r] === temp_arr[i - 3]) {
-        r = Math.round(Math.random() * (TOTAL_TILES - i)) + 1;
-      }
-    }
-
-    temp_arr[i] = tiles[r];
-    tiles.splice(r, 1);
-  }
-
-  return temp_arr;
-}
-
 
 module.exports.spawn = function (options) {
   var STATE = { tiles: []
@@ -161,7 +103,7 @@ module.exports.spawn = function (options) {
       STATE.remaining_tiles = TOTAL_TILES;
       STATE.interval = setInterval(_eachSecond, 1000);
       STATE.started = true;
-    };
+    }
 
     // when a tile is being clicked
     socket.on('tile.clicked', function (tile) {
@@ -237,9 +179,9 @@ module.exports.spawn = function (options) {
     });
 
     socket.on('connect', function (data) {
-      if (!STATE.started) {
-        _initState();
-      }
+      //if (!STATE.started) {
+      //  _initState();
+      //}
       data.id = socket.id;
       STATE.players[socket.id] = data;
       socket.emit('init_state', STATE);

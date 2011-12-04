@@ -1,14 +1,25 @@
+// info
 input#room_id(type='hidden', value= room._id)
 input#user_id(type='hidden', value= user._id)
 input#user_name(type='hidden', value= user.name)
-#danger
-  #num_pairs
+input#user_picture(type= 'hidden', value= user.picture)
 
-#score
+#paused
+  h2 Welcome #{user.name}
+  p
+    | You can invite people to this game by sharing this link:
+    pre http://localhost:3000/game/#{user._id}
+  a.multiplayer(href= '/play/' + user._id) Start game
+
+#playing
+  // danger indicator
+  #danger
+    #num_pairs
+
+  // timer
   #time
-  #points
-  img(src= user.picture, width= 48, height= 48)
 
-#players
+  #canvas
 
-#canvas
+// list of connected users
+ul#players
