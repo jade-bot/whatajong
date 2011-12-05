@@ -168,6 +168,7 @@ module.exports.spawn = function (options) {
       room.emit('mouse.move', data);
     });
 
+    // player connection
     socket.on('disconnect', function () {
       room.emit('players.delete', {id: socket.id});
       delete STATE.players[socket.id];
@@ -178,14 +179,23 @@ module.exports.spawn = function (options) {
       }
     });
 
-    socket.on('connect', function (data) {
-      //if (!STATE.started) {
-      //  _initState();
-      //}
+    socket.on('connect', function (data, cb) {
       data.id = socket.id;
       STATE.players[socket.id] = data;
-      socket.emit('init_state', STATE);
       room.emit('players.add', data);
+      cb(STATE.players);
+
+      if (STATE.started) {
+        room.emit('start', STATE);
+      }
+    });
+
+    // game bootstrap! :)
+    socket.on('start', function (data) {
+      if (!STATE.started) {
+        _initState();
+      }
+      room.emit('start', STATE);
     });
   });
 };

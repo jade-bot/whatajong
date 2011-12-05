@@ -14,28 +14,13 @@ $(function () {
     , CANVAS_WIDTH = (ROWS * TILE_WIDTH) + (2 * SIDE_SIZE)
     , CANVAS_HEIGHT = (COLUMNS * TILE_HEIGHT) + (2 * SIDE_SIZE)
     , paper = Raphael($('#canvas').get(0), CANVAS_WIDTH, CANVAS_HEIGHT)
+    , user_data = { _id: $('#user_id').val()
+                  , name: $('#user_name').val()
+                  , img: $('#user_picture').val()
+                  }
     , svgs = [], images = [], shapes = [], shadows = [];
 
   socket = io.connect('http://localhost/' + $('#room_id').val());
-
-  function _formatTime(val) {
-    var hours = val / 3600 | 0
-      , minutes = (val - (hours * 3600)) / 60 | 0
-      , seconds = val - (hours * 3600) - (minutes * 60)
-      , hours_s = hours < 10 ? "0" + hours : hours
-      , minutes_s = minutes < 10 ? "0" + minutes : minutes
-      , seconds_s = seconds < 10 ? "0" + seconds : seconds;
-
-    hours_s = hours === 0 ? "" : hours_s + ":";
-
-    return hours_s + minutes_s + ":" + seconds_s;
-  }
-
-  function numPairsChanged(num_pairs) {
-    $('#num_pairs')
-      .animate({left: num_pairs < 13 ? 100 - (num_pairs * 100 / 12) : 0}, 300)
-      .text(num_pairs);
-  }
 
   /**
    * Adds the new player to the room view
@@ -51,15 +36,32 @@ $(function () {
                        + '</li>');
   }
 
-  function initState(STATE) {
+  /**
+   * Inits the state and set up the board
+   *
+   * @param {Object} STATE
+   */
+  function startGame(STATE) {
     var TILE = Tile(STATE.current_map);
 
-    numPairsChanged(STATE.num_pairs);
-    _.each(STATE.players, function (user) {
-      if (user.id !== socket.socket.sessionid) {
-        addPlayer(user);
-      }
-    });
+    function formatTime(val) {
+      var hours = val / 3600 | 0
+        , minutes = (val - (hours * 3600)) / 60 | 0
+        , seconds = val - (hours * 3600) - (minutes * 60)
+        , hours_s = hours < 10 ? "0" + hours : hours
+        , minutes_s = minutes < 10 ? "0" + minutes : minutes
+        , seconds_s = seconds < 10 ? "0" + seconds : seconds;
+
+      hours_s = hours === 0 ? "" : hours_s + ":";
+
+      return hours_s + minutes_s + ":" + seconds_s;
+    }
+
+    function numPairsChanged(num_pairs) {
+      $('#num_pairs')
+        .animate({left: num_pairs < 13 ? 100 - (num_pairs * 100 / 12) : 0}, 300)
+        .text(num_pairs);
+    }
 
     function updateTileState(cb) {
       return function (tile) {
@@ -233,7 +235,7 @@ $(function () {
                                , 'L', x, y + TILE_THEIGHT].join(' '));
       body = paper.path([ 'M', x + SIDE_SIZE, y, 'L', x + TILE_TWIDTH, y, 'L', x + TILE_TWIDTH, y + TILE_HEIGHT
                         , 'L', x + SIDE_SIZE, y + TILE_HEIGHT, 'L', x + SIDE_SIZE, y].join(' '));
-      image = paper.image("images/tiles.png", x + SIDE_SIZE - image_loc.x, y - image_loc.y, TILE_WIDTH * 9, TILE_HEIGHT * 5);
+      image = paper.image("/images/tiles.png", x + SIDE_SIZE - image_loc.x, y - image_loc.y, TILE_WIDTH * 9, TILE_HEIGHT * 5);
       shape = paper.path([ 'M', x, y + SIDE_SIZE, 'L', x + SIDE_SIZE, y, 'L', x + TILE_TWIDTH, y
                          , 'L', x + TILE_TWIDTH, y + TILE_HEIGHT, 'L', x + TILE_WIDTH, y + TILE_THEIGHT
                          , 'L', x, y + TILE_THEIGHT, 'L', x, y + SIDE_SIZE].join(' '));
@@ -266,6 +268,7 @@ $(function () {
       $.each([ shadow_up, shadow_right, shadow_up_climb, shadow_right_climb
              , shadow_up_both, shadow_right_both], function (i, el) {
         el.attr(shadow_attr);
+        el.node.style['pointer-events'] = 'none';
       });
 
       set.push(left_side, bottom_side, body, image, shape
@@ -308,40 +311,20 @@ $(function () {
     function onUnselected(tile) {
       shapes[tile.i].attr({fill: '#FFFFFF', 'fill-opacity': 0});
       svgs[tile.i].animate({
-        '20%': {translation: '3 0'}
-      , '40%': {translation: '-6 0'}
-      , '60%': {translation: '6 0'}
-      , '80%': {translation: '-3 0'}
-      , '100%': {translation: '0 0'}
+        '20%': {transform: 'T3,0'}
+      , '40%': {transform: 'T-3,0'}
+      , '60%': {transform: 'T3,0'}
+      , '80%': {transform: 'T-3,0'}
+      , '100%': {transform: 'T0,0'}
       }, 500);
     }
 
-    function drawBoard(tiles) {
-      var i, tile;
-
-      for (i = 1; i <= tiles.length; i++) {
-        if (tiles[i] && !tiles[i].is_deleted) {
-          renderTile(tiles[i]);
-          setShadows(tiles[i]);
-          if (tiles[i].selected) {
-            onSelected(tiles[i]);
-          }
-        }
-      }
-    }
-
-    drawBoard(STATE.tiles);
-
-    socket.on('tile.selected', updateTileState(onSelected));
-    socket.on('tile.unselected', updateTileState(onUnselected));
-
-    socket.on('tiles.deleted', function (data) {
+    function onDelete(data) {
       var coords = _getRealCoordinates(data.tiles[0])
         , $points = $('<span class="points">+' + data.points + '</span>');
 
       $points.css({left: coords.x, top: coords.y});
       $('#canvas').append($points);
-
       $points.animate({top: '-=100', opacity: 0}, 2000, function () {
         $points.remove();
       });
@@ -378,37 +361,69 @@ $(function () {
           makeBetterVisibility(tile, false);
         });
       }));
-    });
+    }
+
+    function drawBoard(tiles) {
+      var i, tile;
+
+      for (i = 1; i <= tiles.length; i++) {
+        if (tiles[i] && !tiles[i].is_deleted) {
+          renderTile(tiles[i]);
+          setShadows(tiles[i]);
+          if (tiles[i].selected) {
+            onSelected(tiles[i]);
+          }
+        }
+      }
+    }
+
+    // bootstrap
+    $('#time').text('00:00');
+    $('#points').text('0');
+    $('#container').removeClass('paused').addClass('playing');
+
+    numPairsChanged(STATE.num_pairs);
+
+    drawBoard(STATE.tiles);
+
+    // game events
+    socket.on('tile.selected', updateTileState(onSelected));
+    socket.on('tile.unselected', updateTileState(onUnselected));
+    socket.on('tiles.deleted', onDelete);
 
     socket.on('map.changed', updateMapState(function (map) {
       STATE.current_map = map;
       TILE = Tile(STATE.current_map);
     }));
+
+    socket.on('tick', function (data) {
+      $('#time').text(formatTime(data.time));
+      $('#points').text(data.points);
+    });
+
+    socket.on('num_pairs.changed', numPairsChanged);
   }
 
-  // init
-  socket.on('init_state', initState);
-  socket.on('num_pairs.changed', numPairsChanged);
+  // room dom events
+  $('.start').click(function () {
+    socket.emit('start');
+    return false;
+  });
 
+  // room socket events
+  socket.on('start', startGame);
   socket.on('players.add', addPlayer);
-
   socket.on('players.delete', function (data) {
     if (data.id !== socket.socket.sessionid) {
       $('#player_' + data.id).remove();
     }
   });
 
-  socket.on('tick', function (data) {
-    $('#time').text(_formatTime(data.time));
-    $('#points').text(data.points);
+  socket.emit('connect', user_data, function (players) {
+    _.each(players, function (user) {
+      if (user.id !== socket.socket.sessionid) {
+        addPlayer(user);
+      }
+    });
   });
-
-  socket.emit('connect', {
-    _id: $('#user_id').val()
-  , name: $('#user_name').val()
-  , img: $('#user_picture').val()
-  });
-
-  $('#time').text('00:00');
-  $('#points').text('0');
 });

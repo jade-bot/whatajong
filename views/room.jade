@@ -4,12 +4,17 @@ input#user_id(type='hidden', value= user._id)
 input#user_name(type='hidden', value= user.name)
 input#user_picture(type= 'hidden', value= user.picture)
 
+// list of connected users
+ul#players
+
 #paused
   h2 Welcome #{user.name}
   p
     | You can invite people to this game by sharing this link:
     pre http://localhost:3000/game/#{user._id}
-  a.multiplayer(href= '/play/' + user._id) Start game
+  - console.log(this)
+  - if (user._id.toString() === room.host_id)
+    a.start(href= '#') Start game
 
 #playing
   // danger indicator
@@ -20,6 +25,3 @@ input#user_picture(type= 'hidden', value= user.picture)
   #time
 
   #canvas
-
-// list of connected users
-ul#players
