@@ -12,6 +12,15 @@
                             , _getPosition(tile.z + 1, tile.y + 1, tile.x - 1)]));
   };
 
+  TILE.getTopCoveringTile = function getTopCoveringTile(tile) {
+    var top_tile = _getPosition(tile.z + 1, tile.y, tile.x)
+        && _getPosition(tile.z + 1, tile.y, tile.x - 1)
+        && _getPosition(tile.z + 1, tile.y + 1, tile.x)
+        && _getPosition(tile.z + 1, tile.y + 1, tile.x - 1);
+
+    return top_tile || null;
+  };
+
   TILE.getDownTiles = function getDownTiles(tile) {
     return _.compact(_.uniq([ _getPosition(tile.z, tile.y + 2, tile.x)
                             , _getPosition(tile.z, tile.y + 2, tile.x - 1)]));

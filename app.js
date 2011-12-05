@@ -142,7 +142,7 @@ everyauth.helpExpress(http);
 db.users.remove({}, function () {
   db.rooms.remove({}, function () {
     io = require('socket.io').listen(http);
-    io.set('log level', 3);
+    io.set('log level', 1);
     http.listen(3000);
   });
 });

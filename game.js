@@ -152,11 +152,11 @@ module.exports.spawn = function (options) {
           // don't match or the same tile
         } else {
           if (STATE.selected_tile.i !== tile.i) {
+            STATE.tiles[STATE.selected_tile.i].selected = false;
             room.emit('tile.unselected', STATE.tiles[STATE.selected_tile.i]);
           }
-          room.emit('tile.unselected', STATE.tiles[tile.i]);
           STATE.tiles[tile.i].selected = false;
-          STATE.tiles[STATE.selected_tile.i].selected = false;
+          room.emit('tile.unselected', STATE.tiles[tile.i]);
           STATE.selected_tile = null;
         }
       }
@@ -186,7 +186,7 @@ module.exports.spawn = function (options) {
       cb(STATE.players);
 
       if (STATE.started) {
-        room.emit('start', STATE);
+        socket.emit('start', STATE);
       }
     });
 

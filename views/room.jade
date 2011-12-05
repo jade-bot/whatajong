@@ -12,7 +12,6 @@ ul#players
   p
     | You can invite people to this game by sharing this link:
     pre http://localhost:3000/game/#{user._id}
-  - console.log(this)
   - if (user._id.toString() === room.host_id)
     a.start(href= '#') Start game
 

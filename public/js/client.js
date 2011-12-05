@@ -151,32 +151,25 @@ $(function () {
       var left_tiles = TILE.getLeftTiles(tile);
 
       function hide(left_top, left) {
+        var covering_top = TILE.getTopCoveringTile(STATE.tiles[left]);
+
         if (!left_top.is_deleted) {
           svgs[left_top].attr({opacity: val ? ALPHA_HIDE : 1});
-          images[left].attr({opacity: val ? 0 : 1});
+          if (left_top === covering_top) {
+            images[left].attr({opacity: val ? 0 : 1});
+          }
         }
       }
 
-      if (left_tiles.length) {
-        // 1 level
-        _.each(left_tiles, function (left) {
-          var left_top_tiles = TILE.getTopTiles(STATE.tiles[left]);
-
-          _.each(left_top_tiles, function (left_top) {
-            hide(left_top, left);
-            // level 2
-            var left_top_top_tiles = TILE.getTopTiles(STATE.tiles[left_top]);
-            _.each(left_top_top_tiles, function (left_top_top) {
-              hide(left_top_top, left_top);
-              // level 3
-              var left_top_top_top_tiles = TILE.getTopTiles(STATE.tiles[left_top_top]);
-              _.each(left_top_top_tiles, function (left_top_top_top) {
-                hide(left_top_top_top, left_top_top);
-              });
-            });
-          });
+      function top(left) {
+        var left_tops = TILE.getTopTiles(STATE.tiles[left]);
+        _.each(left_tops, function (left_top) {
+          hide(left_top, left);
+          top(left_top);
         });
       }
+
+      _.each(left_tiles, top);
     }
 
     function getImageLocation(cardface) {
@@ -297,7 +290,7 @@ $(function () {
         }
         makeBetterVisibility(STATE.tiles[tile.i], true);
       }, function () {
-        if (!STATE.tiles[tile.i].selected) {
+        if (!STATE.tiles[tile.i].selected && !STATE.tiles[tile.i].is_deleted) {
           this.attr({'fill-opacity': 0});
         }
         makeBetterVisibility(STATE.tiles[tile.i], false);
