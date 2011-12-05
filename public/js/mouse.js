@@ -33,7 +33,7 @@ $(function () {
       , h: $('#canvas').height()
       , name: $('#user_name').val()
       });
-    }, 40)
+    }, 60)
   );
 
   socket.on('players.delete', function (data) {
