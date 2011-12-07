@@ -1,10 +1,7 @@
-var node_static = require('node-static')
-  , express = require('express')
+var express = require('express')
   , everyauth = require('everyauth')
-  , file_server = new node_static.Server('./public')
   , conf = require('./conf')
-  , db = require('mongojs').connect(conf.mongodb.connection_url, ['users', 'rooms'])
-  , io, http;
+  , db, io, http;
 
 function parseUser(network, data) {
   var user = {};
@@ -79,14 +76,18 @@ everyauth.twitter
   .findOrCreateUser(findOrCreateUser('twitter'))
   .redirectPath('/');
 
-http = express.createServer(
-  express.favicon()
-, express.bodyParser()
-, express['static'](__dirname + "/public")
-, express.cookieParser()
-, express.session({secret: conf.session.secret})
-, everyauth.middleware()
-);
+http = express.createServer();
+
+http.use(express.favicon());
+http.use(express.bodyParser());
+
+http.configure('development', function () {
+  http.use(express['static'](__dirname + "/public"));
+});
+
+http.use(express.cookieParser());
+http.use(express.session({secret: conf.session.secret}));
+http.use(everyauth.middleware());
 
 http.use(express.errorHandler(
   http.set('env') === 'development'
@@ -139,11 +140,7 @@ http.get('/game/:room_id', authorize, function (req, res, next) {
 
 everyauth.helpExpress(http);
 
-// TODO: remove this!
-db.users.remove({}, function () {
-  db.rooms.remove({}, function () {
-    io = require('socket.io').listen(http);
-    io.set('log level', 1);
-    http.listen(3000);
-  });
-});
+io = require('socket.io').listen(http);
+io.set('log level', 1);
+db = require('mongojs').connect(conf.mongodb.connection_url, ['users', 'rooms']);
+http.listen(3000);

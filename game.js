@@ -203,7 +203,6 @@ module.exports.spawn = function (options) {
       }
 
       if (!Object.keys(STATE.players).length) {
-        console.log('cleanup!');
         options.db.rooms.remove({_id: require('mongojs').ObjectId(options.room_id)});
         clearInterval(STATE.interval);
         STATE = null;
