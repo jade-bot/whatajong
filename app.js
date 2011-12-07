@@ -27,6 +27,7 @@ function findOrCreateUser(network) {
 
     db.users.findOne({access_token: access_token, network: network}, function (error, user) {
       function onUser(error, user) {
+        if (error) return console.log(error);
         if (Array.isArray(user)) {
           user = user[0];
         }
