@@ -139,6 +139,7 @@ http.get('/game/:room_id', authorize, function (req, res, next) {
 
 everyauth.helpExpress(http);
 
+// TODO: remove this!
 db.users.remove({}, function () {
   db.rooms.remove({}, function () {
     io = require('socket.io').listen(http);

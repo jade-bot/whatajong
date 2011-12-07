@@ -30,9 +30,8 @@ $(function () {
    */
   function addPlayer(user) {
     $('#players').append('<li id="player_' + user.id + '">'
-                       + '<span class="name">' + user.name + '</span>'
-                       + '<span class="points"></span>'
-                       + '<img src="' + user.img + '" width="48" height="48" />'
+                       + '<img src="' + user.img + '" title="' + user.name
+                       + '" alt="' + user.name + '" width="48" height="48" />'
                        + '</li>');
   }
 
@@ -58,9 +57,15 @@ $(function () {
     }
 
     function numPairsChanged(num_pairs) {
-      $('#num_pairs')
-        .animate({left: num_pairs < 13 ? 100 - (num_pairs * 100 / 12) : 0}, 300)
-        .text(num_pairs);
+      $('#num_pairs').html(num_pairs + '<span>pairs left</span>');
+
+      if (num_pairs < 3) {
+        $('#num_pairs').css({color: '#f53', 'text-shadow': '0px 0px 3px #f53'}, 300);
+      } else if (num_pairs < 5) {
+        $('#num_pairs').css({color: '#fd3', 'text-shadow': '0px 0px 2px #fd3'}, 300);
+      } else {
+        $('#num_pairs').css({color: 'rgba(0, 0, 0, 0.4)', 'text-shadow': '0px 0px 1px rgba(0, 200, 0, 0.4)'}, 300);
+      }
     }
 
     function updateTileState(cb) {
@@ -252,11 +257,11 @@ $(function () {
                                 , 'L', x + TILE_TWIDTH, y + TILE_HEIGHT, 'L', x + TILE_TWIDTH, y + SIDE_SIZE
                                 ].join(' '));
 
-      left_side.attr({fill: '#FFBB89', stroke: ''});
-      bottom_side.attr({fill: '#FF9966', stroke: ''});
-      body.attr({fill: '#FEE1A9', stroke: ''});
-      image.attr({'clip-rect': [x + SIDE_SIZE, y, TILE_WIDTH, TILE_HEIGHT]});
-      shape.attr({stroke: '#664433', 'stroke-width': 2, cursor: 'pointer', fill: '#fff', 'fill-opacity': 0});
+      left_side.attr({fill: '#FFBB89', stroke: '', cursor: 'pointer'});
+      bottom_side.attr({fill: '#FF9966', stroke: '', cursor: 'pointer'});
+      body.attr({fill: '#FEE1A9', stroke: '', cursor: 'pointer'});
+      image.attr({'clip-rect': [x + SIDE_SIZE, y, TILE_WIDTH, TILE_HEIGHT], cursor: 'pointer'});
+      shape.attr({stroke: '#520', 'stroke-width': 1, cursor: 'pointer', fill: '#fff', 'fill-opacity': 0});
 
       $.each([ shadow_up, shadow_right, shadow_up_climb, shadow_right_climb
              , shadow_up_both, shadow_right_both], function (i, el) {
@@ -298,10 +303,12 @@ $(function () {
     }
 
     function onSelected(tile) {
+      document.getElementById('s_click').play();
       shapes[tile.i].attr({fill: '#FFCC33', 'fill-opacity': 0.5});
     }
 
     function onUnselected(tile) {
+      document.getElementById('s_grunt').play();
       shapes[tile.i].attr({fill: '#FFFFFF', 'fill-opacity': 0});
       svgs[tile.i].animate({
         '20%': {transform: 'T3,0'}
@@ -313,12 +320,13 @@ $(function () {
     }
 
     function onDelete(data) {
+      document.getElementById('s_gling').play();
       var coords = _getRealCoordinates(data.tiles[0])
         , $points = $('<span class="points">+' + data.points + '</span>');
 
-      $points.css({left: coords.x, top: coords.y});
+      $points.css({left: coords.x + 134, top: coords.y});
       $('#canvas').append($points);
-      $points.animate({top: '-=100', opacity: 0}, 2000, function () {
+      $points.animate({top: '-=100', opacity: 0}, 1000, function () {
         $points.remove();
       });
 
@@ -359,6 +367,7 @@ $(function () {
     function drawBoard(tiles) {
       var i, tile;
 
+      paper.clear();
       for (i = 1; i <= tiles.length; i++) {
         if (tiles[i] && !tiles[i].is_deleted) {
           renderTile(tiles[i]);
@@ -372,7 +381,7 @@ $(function () {
 
     // bootstrap
     $('#time').text('00:00');
-    $('#points').text('0');
+    $('.total_score').text(250);
     $('#container').removeClass('paused').addClass('playing');
 
     numPairsChanged(STATE.num_pairs);
@@ -391,7 +400,19 @@ $(function () {
 
     socket.on('tick', function (data) {
       $('#time').text(formatTime(data.time));
-      $('#points').text(data.points);
+      $('.total_score').text(data.points);
+    });
+
+    socket.on('game.win', function () {
+      APP.Confirm.open($('#win'), function () {
+        socket.emit('restart');
+      });
+    });
+
+    socket.on('game.loose', function () {
+      APP.Confirm.open($('#loose'), function () {
+        socket.emit('restart');
+      });
     });
 
     socket.on('num_pairs.changed', numPairsChanged);
@@ -401,6 +422,10 @@ $(function () {
   $('.start').click(function () {
     socket.emit('start');
     return false;
+  });
+
+  $('textarea').click(function () {
+    this.select();
   });
 
   // room socket events

@@ -4,23 +4,44 @@ input#user_id(type='hidden', value= user._id)
 input#user_name(type='hidden', value= user.name)
 input#user_picture(type= 'hidden', value= user.picture)
 
+#win.dialog
+  .dialog_modal
+  .dialog_content
+    h2 Congratulations! You win!
+    p
+      | Your score is:
+      span.total_score 250
+      = ' points'
+    a.back.btn.blue(href= '/') Leave the game
+    a.dialog_yes.btn(href= '') Play again
+
+#loose.dialog
+  .dialog_modal
+  .dialog_content
+    h2 You lost!
+    p
+      | Your score is:
+      span.total_score 250
+      | points
+    a.back.btn.blue(href= '/') Leave the game
+    a.dialog_yes.btn(href= '') Play again
+
 // list of connected users
 ul#players
 
 #paused
   h2 Welcome #{user.name}
+  - if (everyauth.loggedIn)
+    a#logout.btn.blue(href='/logout') Logout
   p
     | You can invite people to this game by sharing this link:
-    pre http://localhost:3000/game/#{user._id}
+    textarea http://localhost:3000/game/#{user._id}
   - if (user._id.toString() === room.host_id)
-    a.start(href= '#') Start game
+    a.start.btn(href= '#') Start game
 
 #playing
-  // danger indicator
-  #danger
-    #num_pairs
-
-  // timer
-  #time
+  #score
+    #time
+  #num_pairs
 
   #canvas

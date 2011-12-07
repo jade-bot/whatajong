@@ -5,14 +5,20 @@ var TOTAL_TILES = 144
 
 GLOBAL._ = require('underscore');
 
+function _defaultState() {
+  return { tiles: []
+         , time: 0
+         , points: 250
+         , selected_tile: null
+         , players: {}
+         , started: false
+         , finished: false
+         };
+}
+
 module.exports.spawn = function (options) {
-  var STATE = { tiles: []
-              , time: 0
-              , points: 250
-              , selected_tile: null
-              , players: {}
-              , started: false
-              }
+  var STATE = _defaultState()
+    , gamesManager = require('./lib/games')(options, STATE)
     , Tile, room;
 
   room = options.io.of('/' + options.room_id).on('connection', function onSpawn(socket) {
@@ -138,18 +144,30 @@ module.exports.spawn = function (options) {
 
           STATE.selected_tile = null;
 
+          room.emit('num_pairs.changed', STATE.num_pairs);
+
           if (!STATE.num_pairs || !STATE.remaining_tiles) {
+            STATE.finished = true;
+            clearInterval(STATE.interval);
+
             // loose
-            if (!STATE.num_pairs) {
-              room.emit('game.loose');
+            if (!STATE.remaining_tiles) {
+              room.emit('game.win');
             // win
             } else {
-              room.emit('game.win');
+              room.emit('game.loose');
             }
+
+            gamesManager.saveGame(
+              null
+            , { finished: !STATE.remaining_tiles
+              , remaining_tiles: STATE.remaining_tiles
+              , points: STATE.points
+              , time: STATE.time
+            });
           }
 
-          room.emit('num_pairs.changed', STATE.num_pairs);
-          // don't match or the same tile
+        // don't match or the same tile
         } else {
           if (STATE.selected_tile.i !== tile.i) {
             STATE.tiles[STATE.selected_tile.i].selected = false;
@@ -172,6 +190,17 @@ module.exports.spawn = function (options) {
     socket.on('disconnect', function () {
       room.emit('players.delete', {id: socket.id});
       delete STATE.players[socket.id];
+
+      // save the unfinished game
+      if (STATE.started && !STATE.finished) {
+        gamesManager.saveGame(
+          [socket.id]
+        , { finished: false
+          , remaining_tiles: STATE.remaining_tiles
+          , points: 0
+          , time: STATE.time
+        });
+      }
 
       if (!Object.keys(STATE.players).length) {
         console.log('cleanup!');
@@ -197,6 +226,14 @@ module.exports.spawn = function (options) {
       if (!STATE.started) {
         _initState();
       }
+      room.emit('start', STATE);
+    });
+
+    socket.on('restart', function (data) {
+      clearInterval(STATE.interval);
+      STATE = _defaultState();
+      gamesManager = require('./lib/games')(options, STATE);
+      _initState();
       room.emit('start', STATE);
     });
   });
