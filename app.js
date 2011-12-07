@@ -81,11 +81,7 @@ http = express.createServer();
 
 http.use(express.favicon());
 http.use(express.bodyParser());
-
-http.configure('development', function () {
-  http.use(express['static'](__dirname + "/public"));
-});
-
+http.use(express['static'](__dirname + "/public"));
 http.use(express.cookieParser());
 http.use(express.session({secret: conf.session.secret}));
 http.use(everyauth.middleware());
