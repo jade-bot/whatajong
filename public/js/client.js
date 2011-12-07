@@ -20,7 +20,7 @@ $(function () {
                   }
     , svgs = [], images = [], shapes = [], shadows = [];
 
-  socket = io.connect('http://localhost/' + $('#room_id').val());
+  socket = io.connect('/' + $('#room_id').val());
 
   /**
    * Adds the new player to the room view
@@ -424,9 +424,11 @@ $(function () {
     return false;
   });
 
-  $('textarea').click(function () {
-    this.select();
-  });
+  $('textarea')
+    .text($('textarea').text().replace('URL', document.location))
+    .click(function () {
+      this.select();
+    });
 
   // room socket events
   socket.on('start', startGame);

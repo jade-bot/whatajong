@@ -35,7 +35,7 @@ ul#players
     a#logout.btn.blue(href='/logout') Logout
   p
     | You can invite people to this game by sharing this link:
-    textarea http://localhost:3000/game/#{user._id}
+    textarea URL
   - if (user._id.toString() === room.host_id)
     a.start.btn(href= '#') Start game
 
