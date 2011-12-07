@@ -140,4 +140,4 @@ everyauth.helpExpress(http);
 io = require('socket.io').listen(http);
 io.set('log level', 1);
 db = require('mongojs').connect(conf.mongodb.connection_url, ['users', 'rooms']);
-http.listen(3000);
+http.listen(conf.port || 3000);
