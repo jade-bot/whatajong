@@ -215,6 +215,68 @@ $(function () {
       return {x: x, y: y};
     }
 
+    function onSelected(tile) {
+      document.getElementById('s_click').play();
+      shapes[tile.i].attr({fill: '#FFCC33', 'fill-opacity': 0.5});
+    }
+
+    function onUnselected(tile) {
+      document.getElementById('s_grunt').play();
+      shapes[tile.i].attr({fill: '#FFFFFF', 'fill-opacity': 0});
+      svgs[tile.i].animate({
+        '20%': {transform: 'T3,0'}
+      , '40%': {transform: 'T-3,0'}
+      , '60%': {transform: 'T3,0'}
+      , '80%': {transform: 'T-3,0'}
+      , '100%': {transform: 'T0,0'}
+      }, 500);
+    }
+
+    function onDelete(data) {
+      document.getElementById('s_gling').play();
+      var coords = _getRealCoordinates(data.tiles[0])
+        , $points = $('<span class="points">+' + data.points + '</span>');
+
+      $points.css({left: coords.x + 134, top: coords.y});
+      $('#canvas').append($points);
+      $points.animate({top: '-=100', opacity: 0}, 1000, function () {
+        $points.remove();
+      });
+
+      function shadowing(tile) {
+        _.each(TILE.getLeftTiles(tile), function (el) {
+          if (!STATE.tiles[el].is_deleted) {
+            setShadows(STATE.tiles[el]);
+            _.each(TILE.getDownTiles(STATE.tiles[el]), function (el) {
+              if (!STATE.tiles[el].is_deleted) {
+                setShadows(STATE.tiles[el]);
+              }
+            });
+          }
+        });
+
+        _.each(TILE.getDownTiles(tile), function (el) {
+          if (!STATE.tiles[el].is_deleted) {
+            setShadows(STATE.tiles[el]);
+            _.each(TILE.getLeftTiles(STATE.tiles[el]), function (el) {
+              if (!STATE.tiles[el].is_deleted) {
+                setShadows(STATE.tiles[el]);
+              }
+            });
+          }
+        });
+      }
+
+      _.each(data.tiles, updateTileState(function (tile) {
+        shadowing(tile);
+
+        svgs[tile.i].animate({opacity: 0}, 300, '>', function () {
+          svgs[tile.i].remove();
+          makeBetterVisibility(tile, false);
+        });
+      }));
+    }
+
     function renderTile(tile) {
       var coords = _getRealCoordinates(tile)
         , x = coords.x
@@ -286,6 +348,7 @@ $(function () {
       };
 
       shape.click(function () {
+        onSelected(tile);
         socket.emit('tile.clicked', tile);
       });
 
@@ -300,68 +363,6 @@ $(function () {
         }
         makeBetterVisibility(STATE.tiles[tile.i], false);
       });
-    }
-
-    function onSelected(tile) {
-      document.getElementById('s_click').play();
-      shapes[tile.i].attr({fill: '#FFCC33', 'fill-opacity': 0.5});
-    }
-
-    function onUnselected(tile) {
-      document.getElementById('s_grunt').play();
-      shapes[tile.i].attr({fill: '#FFFFFF', 'fill-opacity': 0});
-      svgs[tile.i].animate({
-        '20%': {transform: 'T3,0'}
-      , '40%': {transform: 'T-3,0'}
-      , '60%': {transform: 'T3,0'}
-      , '80%': {transform: 'T-3,0'}
-      , '100%': {transform: 'T0,0'}
-      }, 500);
-    }
-
-    function onDelete(data) {
-      document.getElementById('s_gling').play();
-      var coords = _getRealCoordinates(data.tiles[0])
-        , $points = $('<span class="points">+' + data.points + '</span>');
-
-      $points.css({left: coords.x + 134, top: coords.y});
-      $('#canvas').append($points);
-      $points.animate({top: '-=100', opacity: 0}, 1000, function () {
-        $points.remove();
-      });
-
-      function shadowing(tile) {
-        _.each(TILE.getLeftTiles(tile), function (el) {
-          if (!STATE.tiles[el].is_deleted) {
-            setShadows(STATE.tiles[el]);
-            _.each(TILE.getDownTiles(STATE.tiles[el]), function (el) {
-              if (!STATE.tiles[el].is_deleted) {
-                setShadows(STATE.tiles[el]);
-              }
-            });
-          }
-        });
-
-        _.each(TILE.getDownTiles(tile), function (el) {
-          if (!STATE.tiles[el].is_deleted) {
-            setShadows(STATE.tiles[el]);
-            _.each(TILE.getLeftTiles(STATE.tiles[el]), function (el) {
-              if (!STATE.tiles[el].is_deleted) {
-                setShadows(STATE.tiles[el]);
-              }
-            });
-          }
-        });
-      }
-
-      _.each(data.tiles, updateTileState(function (tile) {
-        shadowing(tile);
-
-        svgs[tile.i].animate({opacity: 0}, 300, '>', function () {
-          svgs[tile.i].remove();
-          makeBetterVisibility(tile, false);
-        });
-      }));
     }
 
     function drawBoard(tiles) {
@@ -389,7 +390,7 @@ $(function () {
     drawBoard(STATE.tiles);
 
     // game events
-    socket.on('tile.selected', updateTileState(onSelected));
+    socket.on('tile.selected', updateTileState(function () {}));
     socket.on('tile.unselected', updateTileState(onUnselected));
     socket.on('tiles.deleted', onDelete);
 
