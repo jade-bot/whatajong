@@ -1,6 +1,7 @@
 var express = require('express')
   , everyauth = require('everyauth')
   , conf = require('./conf')
+  , asereje = require('asereje')
   , db, io, http;
 
 function parseUser(network, data) {
@@ -96,6 +97,16 @@ http.configure(function () {
   http.set('view engine', 'jade');
 });
 
+asereje.config({
+  active: http.set('env') === 'production' // enable it just for production
+, js_globals: [ 'vendor/jquery'            // js files that will be present always
+              , 'vendor/raphael'
+              , 'vendor/underscore']
+, css_globals: ['global']                  // css files that will be present always
+, js_path: __dirname + '/public/js'        // javascript folder path
+, css_path: __dirname + '/public/css'      // css folder path
+});
+
 http.get('/', function (req, res, next) {
   var query;
 
@@ -105,16 +116,26 @@ http.get('/', function (req, res, next) {
   } else if (req.user) {                  // just logged
     res.redirect('/game/' + req.user._id);
   } else {
-    res.render('index', {room: null});
+    res.render('index', {
+      room: null
+    , css: asereje.css()
+    , js: asereje.js()
+    });
   }
 });
 
 http.get('/game/:room_id', authorize, function (req, res, next) {
   var query = {host_id: req.param('room_id')}
+    , js = ['tile', 'client', 'mouse', 'confirm']
     , room;
 
   function renderRoom(room) {
-    res.render('room', {room: room, user: req.user});
+    res.render('room', {
+      room: room
+    , user: req.user
+    , css: asereje.css()
+    , js: asereje.js(js)
+    });
   }
 
   db.rooms.findOne(query, function (error, room) {
@@ -129,7 +150,12 @@ http.get('/game/:room_id', authorize, function (req, res, next) {
           renderRoom(rooms[0]);
         });
       } else {
-        res.render('inexistant_room', {room: room, user: req.user});
+        res.render('inexistant_room', {
+          room: room
+        , user: req.user
+        , css: asereje.css()
+        , js: asereje.js(js)
+        });
       }
     }
   });

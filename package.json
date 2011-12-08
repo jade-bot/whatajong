@@ -9,6 +9,7 @@
     "express": "2.5.1",
     "everyauth": "0.2.27",
     "jade": "0.15.4",
-    "mongojs": "0.2.6"
+    "mongojs": "0.2.6",
+    "asereje": "0.0.9"
   }
 }

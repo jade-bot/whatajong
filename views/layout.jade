@@ -4,31 +4,28 @@ html
     link(href='http://fonts.googleapis.com/css?family=Bowlby+One', rel='stylesheet', type='text/css')
     meta(charset="utf-8")
     title FUCKMAHJONG
-    link(rel="stylesheet", href="/css/whatajong.css", type="text/css", media="screen")
 
-    script(src="/js/vendor/jquery.js")
+    - each file in css
+      link(rel='stylesheet', href="/css/" + file + ".css", type="text/css")
+
+    script(src="/socket.io/socket.io.js")
     script
       window.location.hash = '';
       APP = {};
 
-    - if (room)
-      script(src="/js/vendor/raphael.js")
-      script(src="/js/vendor/underscore.js")
-      script(src="/socket.io/socket.io.js")
-      script(src="/js/tile.js")
-      script(src="/js/client.js")
-      script(src="/js/mouse.js")
-      script(src="/js/confirm.js")
-
-      audio#s_click(preload)
-        source(src= "/sounds/click.mp3")
-      audio#s_gling(preload)
-        source(src= "/sounds/gling.mp3")
-      audio#s_grunt(preload)
-        source(src= "/sounds/grunt.mp3")
+    audio#s_click(preload)
+      source(src= "/sounds/click.mp3")
+    audio#s_gling(preload)
+      source(src= "/sounds/gling.mp3")
+    audio#s_grunt(preload)
+      source(src= "/sounds/grunt.mp3")
 
   body
     #container.paused
       h1
         a(href= '/') FUCKMAHJONG
       != body
+
+    - if (room)
+      - each file in js
+        script(src='/js/' + file + '.js')
