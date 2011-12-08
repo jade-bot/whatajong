@@ -7,9 +7,6 @@ html
 
     - each file in css
       link(rel='stylesheet', href= assets_host + "/css/" + file + ".css", type="text/css")
-    script
-      window.location.hash = '';
-      APP = {};
 
     audio#s_click(preload)
       source(src= assets_host + "/sounds/click.mp3")

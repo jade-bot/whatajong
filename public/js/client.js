@@ -430,7 +430,7 @@ $(function () {
   };
 
   $('textarea')
-    .text($('textarea').text().replace('URL', document.location))
+    .text($('textarea').text().replace('URL', document.URL.replace(/\#.*/, '')))
     .click(function () {
       this.select();
     });
