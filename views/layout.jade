@@ -7,8 +7,6 @@ html
 
     - each file in css
       link(rel='stylesheet', href= assets_host + "/css/" + file + ".css", type="text/css")
-
-    script(src="/socket.io/socket.io.js")
     script
       window.location.hash = '';
       APP = {};
@@ -27,5 +25,6 @@ html
       != body
 
     - if (room)
+      script(src="/socket.io/socket.io.js")
       - each file in js
         script(src= assets_host + '/js/' + file + '.js')
