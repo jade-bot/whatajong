@@ -69,9 +69,9 @@ $(function () {
     }
 
     function updateTileState(cb) {
-      return function (tile) {
-        STATE.tiles[tile.i] = tile;
-        cb(tile);
+      return function (data) {
+        STATE.tiles[data.tile.i] = data.tile;
+        cb(data);
       };
     }
 
@@ -215,15 +215,28 @@ $(function () {
       return {x: x, y: y};
     }
 
-    function onSelected(tile) {
-      shapes[tile.i].attr({fill: '#FFCC33', 'fill-opacity': 0.5});
+    function onSelected(data) {
+      if (!data.origin || data.origin !== user_data._id) {
+        document.getElementById('s_click').play();
+      }
+      shapes[data.tile.i].attr({fill: '#FFCC33', 'fill-opacity': 0.5});
     }
 
-    function onUnselected(tile) {
-      shapes[tile.i].attr({fill: '#FFFFFF', 'fill-opacity': 0});
+    function onUnselected(data) {
+      if (!data.origin || data.origin !== user_data._id) {
+        document.getElementById('s_grunt').play();
+        svgs[data.tile.i].animate({
+          '20%': {transform: 'T3,0'}
+        , '40%': {transform: 'T-3,0'}
+        , '60%': {transform: 'T3,0'}
+        , '80%': {transform: 'T-3,0'}
+        , '100%': {transform: 'T0,0'}
+        }, 500);
+      }
+      shapes[data.tile.i].attr({fill: '#FFFFFF', 'fill-opacity': 0});
     }
 
-    function onDelete(tiles) {
+    function onDelete(data) {
       function shadowing(tile) {
         _.each(TILE.getLeftTiles(tile), function (el) {
           if (!STATE.tiles[el].is_deleted) {
@@ -248,11 +261,29 @@ $(function () {
         });
       }
 
-      _.each(tiles, updateTileState(function (tile) {
-        shadowing(tile);
-        svgs[tile.i].remove();
-        makeBetterVisibility(tile, false);
-      }));
+      if (!data.origin || data.origin !== user_data._id) {
+        document.getElementById('s_gling').play();
+        var coords = _getRealCoordinates(data.tile)
+          , $points = $('<span class="points">+' + (data.points / 2) + '</span>');
+
+        $points.css({left: coords.x + 134, top: coords.y});
+        $('#canvas').append($points);
+        $points.animate({top: '-=100', opacity: 0}, 600, function () {
+          $points.remove();
+        });
+
+        svgs[data.tile.i].animate({opacity: 0}, 300, '>', function () {
+          shadowing(data.tile);
+          svgs[data.tile.i].remove();
+          makeBetterVisibility(data.tile, false);
+        });
+      }
+    }
+
+    function onDeleteMessage(data) {
+      _.each(data.tiles, function (tile) {
+        updateTileState(onDelete)({tile: tile, origin: data.origin});
+      });
     }
 
     function renderTile(tile) {
@@ -328,38 +359,21 @@ $(function () {
       shape.click(function () {
         TILE.onClicked(STATE
         , function firstSelection(tile) {
-            document.getElementById('s_click').play();
-            onSelected(tile);
+            onSelected({tile: tile});
           }
         , function secondSelection(tile, selected_tile, points) {
-            document.getElementById('s_gling').play();
-            var coords = _getRealCoordinates(tile)
-              , $points = $('<span class="points">+' + points + '</span>');
-
-            $points.css({left: coords.x + 134, top: coords.y});
-            $('#canvas').append($points);
-            $points.animate({top: '-=100', opacity: 0}, 1000, function () {
-              $points.remove();
-            });
-
             _.each([tile, selected_tile], function (t) {
-              svgs[t.i].animate({opacity: 0}, 300, '>');
+              onDelete({tile: t, points: points});
             });
           }
         , function notMatching(tile, selected_tile) {
-            document.getElementById('s_grunt').play();
-            _.each([tile, selected_tile], function (t) {
-              svgs[t.i].animate({
-                '20%': {transform: 'T3,0'}
-              , '40%': {transform: 'T-3,0'}
-              , '60%': {transform: 'T3,0'}
-              , '80%': {transform: 'T-3,0'}
-              , '100%': {transform: 'T0,0'}
-              }, 500);
-            });
+            if (selected_tile.i !== tile.i) {
+              onUnselected({tile: selected_tile});
+            }
+            onUnselected({tile: tile});
           }
         )(tile);
-        socket.emit('tile.clicked', tile);
+        socket.emit('tile.clicked', {tile: tile, origin: user_data._id});
       });
 
       shape.hover(function () {
@@ -402,7 +416,7 @@ $(function () {
     // game events
     socket.on('tile.selected', updateTileState(onSelected));
     socket.on('tile.unselected', updateTileState(onUnselected));
-    socket.on('tiles.deleted', onDelete);
+    socket.on('tiles.deleted', onDeleteMessage);
 
     socket.on('map.changed', updateMapState(function (map) {
       STATE.current_map = map;
