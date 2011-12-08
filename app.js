@@ -97,6 +97,10 @@ http.configure(function () {
   http.set('view engine', 'jade');
 });
 
+http.helpers({
+  assets_host: conf.assets_host || ''
+});
+
 asereje.config({
   active: http.set('env') === 'production' // enable it just for production
 , js_globals: [ 'vendor/jquery'            // js files that will be present always

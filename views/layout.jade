@@ -6,7 +6,7 @@ html
     title FUCKMAHJONG
 
     - each file in css
-      link(rel='stylesheet', href="/css/" + file + ".css", type="text/css")
+      link(rel='stylesheet', href= assets_host + "/css/" + file + ".css", type="text/css")
 
     script(src="/socket.io/socket.io.js")
     script
@@ -14,11 +14,11 @@ html
       APP = {};
 
     audio#s_click(preload)
-      source(src= "/sounds/click.mp3")
+      source(src= assets_host + "/sounds/click.mp3")
     audio#s_gling(preload)
-      source(src= "/sounds/gling.mp3")
+      source(src= assets_host + "/sounds/gling.mp3")
     audio#s_grunt(preload)
-      source(src= "/sounds/grunt.mp3")
+      source(src= assets_host + "/sounds/grunt.mp3")
 
   body
     #container.paused
@@ -28,4 +28,4 @@ html
 
     - if (room)
       - each file in js
-        script(src='/js/' + file + '.js')
+        script(src= assets_host + '/js/' + file + '.js')
