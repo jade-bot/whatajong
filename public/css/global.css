@@ -130,14 +130,6 @@ h2 {
           box-shadow: 1px 1px 1px #630 inset, 1px 1px 0px #d47543;
 }
 
-.points {
-  font-family: 'Bowlby One';
-  position: absolute;
-  font-size: 32pt;
-  color: #8b3;
-  text-shadow: 2px 2px 1px #690;
-}
-
 .mouse{
   position: absolute;
   height: 22px;

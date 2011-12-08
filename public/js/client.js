@@ -263,15 +263,6 @@ $(function () {
 
       if (!data.origin || data.origin !== user_data._id) {
         document.getElementById('s_gling').play();
-        var coords = _getRealCoordinates(data.tile)
-          , $points = $('<span class="points">+' + (data.points / 2) + '</span>');
-
-        $points.css({left: coords.x + 134, top: coords.y});
-        $('#canvas').append($points);
-        $points.animate({top: '-=100', opacity: 0}, 600, function () {
-          $points.remove();
-        });
-
         svgs[data.tile.i].animate({opacity: 0}, 300, '>', function () {
           shadowing(data.tile);
           svgs[data.tile.i].remove();
