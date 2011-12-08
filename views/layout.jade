@@ -22,6 +22,8 @@ html
       != body
 
     - if (room)
+      script
+        APP = {};
       script(src="/socket.io/socket.io.js")
       - each file in js
         script(src= assets_host + '/js/' + file + '.js')

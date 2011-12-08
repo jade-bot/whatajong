@@ -216,33 +216,14 @@ $(function () {
     }
 
     function onSelected(tile) {
-      document.getElementById('s_click').play();
       shapes[tile.i].attr({fill: '#FFCC33', 'fill-opacity': 0.5});
     }
 
     function onUnselected(tile) {
-      document.getElementById('s_grunt').play();
       shapes[tile.i].attr({fill: '#FFFFFF', 'fill-opacity': 0});
-      svgs[tile.i].animate({
-        '20%': {transform: 'T3,0'}
-      , '40%': {transform: 'T-3,0'}
-      , '60%': {transform: 'T3,0'}
-      , '80%': {transform: 'T-3,0'}
-      , '100%': {transform: 'T0,0'}
-      }, 500);
     }
 
     function onDelete(data) {
-      document.getElementById('s_gling').play();
-      var coords = _getRealCoordinates(data.tiles[0])
-        , $points = $('<span class="points">+' + data.points + '</span>');
-
-      $points.css({left: coords.x + 134, top: coords.y});
-      $('#canvas').append($points);
-      $points.animate({top: '-=100', opacity: 0}, 1000, function () {
-        $points.remove();
-      });
-
       function shadowing(tile) {
         _.each(TILE.getLeftTiles(tile), function (el) {
           if (!STATE.tiles[el].is_deleted) {
@@ -269,11 +250,8 @@ $(function () {
 
       _.each(data.tiles, updateTileState(function (tile) {
         shadowing(tile);
-
-        svgs[tile.i].animate({opacity: 0}, 300, '>', function () {
-          svgs[tile.i].remove();
-          makeBetterVisibility(tile, false);
-        });
+        svgs[tile.i].remove();
+        makeBetterVisibility(tile, false);
       }));
     }
 
@@ -348,7 +326,39 @@ $(function () {
       };
 
       shape.click(function () {
-        onSelected(tile);
+        TILE.onClicked(STATE
+        , function firstSelection(tile) {
+            document.getElementById('s_click').play();
+            onSelected(tile);
+          }
+        , function secondSelection(tile, selected_tile, points) {
+            document.getElementById('s_gling').play();
+            var coords = _getRealCoordinates(tile)
+              , $points = $('<span class="points">+' + points + '</span>');
+
+            $points.css({left: coords.x + 134, top: coords.y});
+            $('#canvas').append($points);
+            $points.animate({top: '-=100', opacity: 0}, 1000, function () {
+              $points.remove();
+            });
+
+            _.each([tile, selected_tile], function (t) {
+              svgs[t.i].animate({opacity: 0}, 300, '>');
+            });
+          }
+        , function notMatching(tile, selected_tile) {
+            document.getElementById('s_grunt').play();
+            _.each([tile, selected_tile], function (t) {
+              svgs[t.i].animate({
+                '20%': {transform: 'T3,0'}
+              , '40%': {transform: 'T-3,0'}
+              , '60%': {transform: 'T3,0'}
+              , '80%': {transform: 'T-3,0'}
+              , '100%': {transform: 'T0,0'}
+              }, 500);
+            });
+          }
+        )(tile);
         socket.emit('tile.clicked', tile);
       });
 
