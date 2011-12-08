@@ -390,7 +390,7 @@ $(function () {
     drawBoard(STATE.tiles);
 
     // game events
-    socket.on('tile.selected', updateTileState(function () {}));
+    socket.on('tile.selected', updateTileState(onSelected));
     socket.on('tile.unselected', updateTileState(onUnselected));
     socket.on('tiles.deleted', onDelete);
 
@@ -424,6 +424,10 @@ $(function () {
     socket.emit('start');
     return false;
   });
+
+  $('#canvas')[0].onselectstart = function () {
+    return false;
+  };
 
   $('textarea')
     .text($('textarea').text().replace('URL', document.location))

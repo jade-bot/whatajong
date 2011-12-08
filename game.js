@@ -112,6 +112,7 @@ module.exports.spawn = function (options) {
     }
 
     // when a tile is being clicked
+    // TODO: Move this to Tile
     socket.on('tile.clicked', function (tile) {
       var points;
 
