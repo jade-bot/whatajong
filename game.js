@@ -70,13 +70,10 @@ module.exports.spawn = function (options) {
       }
       , function secondSelection(tile, selected_tile, points) {
         room.emit('map.changed', STATE.current_map);
-        room.emit('tiles.deleted', {
-          tiles: [
-            STATE.tiles[tile.i]
-          , STATE.tiles[selected_tile.i]
-          ]
-        , points: points
-        });
+        room.emit('tiles.deleted', [
+          STATE.tiles[tile.i]
+        , STATE.tiles[selected_tile.i]
+        ]);
         room.emit('num_pairs.changed', STATE.num_pairs);
 
         if (!STATE.num_pairs || !STATE.remaining_tiles) {

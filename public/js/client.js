@@ -223,7 +223,7 @@ $(function () {
       shapes[tile.i].attr({fill: '#FFFFFF', 'fill-opacity': 0});
     }
 
-    function onDelete(data) {
+    function onDelete(tiles) {
       function shadowing(tile) {
         _.each(TILE.getLeftTiles(tile), function (el) {
           if (!STATE.tiles[el].is_deleted) {
@@ -248,7 +248,7 @@ $(function () {
         });
       }
 
-      _.each(data.tiles, updateTileState(function (tile) {
+      _.each(tiles, updateTileState(function (tile) {
         shadowing(tile);
         svgs[tile.i].remove();
         makeBetterVisibility(tile, false);
