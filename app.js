@@ -95,6 +95,7 @@ http.use(express.errorHandler(
 
 http.configure(function () {
   http.set('view engine', 'jade');
+  http.set('views', __dirname + '/views');
 });
 
 http.helpers({
