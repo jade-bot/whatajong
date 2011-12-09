@@ -231,9 +231,12 @@ $(function () {
         , '60%': {transform: 'T3,0'}
         , '80%': {transform: 'T-3,0'}
         , '100%': {transform: 'T0,0'}
-        }, 500);
+        }, 500, 'linear');
       }
-      shapes[data.tile.i].attr({fill: '#FFFFFF', 'fill-opacity': 0});
+
+      setTimeout(function () {
+        shapes[data.tile.i].attr({fill: '#FFFFFF', 'fill-opacity': 0});
+      }, 200);
     }
 
     function onDelete(data) {
@@ -353,6 +356,7 @@ $(function () {
           }
         , function notMatching(tile, selected_tile) {
             if (selected_tile.i !== tile.i) {
+              shapes[tile.i].attr({fill: '#FFCC33', 'fill-opacity': 0.5});
               onUnselected({tile: selected_tile});
             }
             onUnselected({tile: tile});

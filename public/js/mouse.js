@@ -16,12 +16,13 @@ $(function () {
   function move(data) {
     if (!$('#mouse_' + data.id).length) {
       $('#canvas').append('<span class="mouse" id="mouse_' + data.id
-                        + '">' + data.name + '</span>');
+                        + '">' + data.name.split(' ')[0] + '</span>');
     }
 
-    var style = $('#mouse_' + data.id)[0].style;
-    style.left = (data.x - 2) + 'px';
-    style.top = (data.y - 2) + 'px';
+    $('#mouse_' + data.id).animate({
+      left: (data.x - 2) + 'px'
+    , top: (data.y - 2) + 'px'
+    }, 100, 'linear');
   }
 
   $('#canvas').mousemove(
@@ -33,7 +34,7 @@ $(function () {
       , h: $('#canvas').height()
       , name: $('#user_name').val()
       });
-    }, 60)
+    }, 100)
   );
 
   socket.on('players.delete', function (data) {
