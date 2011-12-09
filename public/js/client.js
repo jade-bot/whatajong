@@ -158,16 +158,23 @@ $(function () {
       function hide(left_top, left) {
         var covering_top = TILE.getTopCoveringTile(STATE.tiles[left]);
 
-        if (!left_top.is_deleted) {
+        if (!left_top.is_deleted || !val) {
           svgs[left_top].attr({opacity: val ? ALPHA_HIDE : 1});
-          if (left_top === covering_top) {
-            images[left].attr({opacity: val ? 0 : 1});
+          if (left_top === covering_top && val) {
+            images[left].attr({opacity: 0});
           }
         }
       }
 
       function top(left) {
         var left_tops = TILE.getTopTiles(STATE.tiles[left]);
+
+        // handles the edge case when the top_tile is deleted
+        // but we need to recover the alpha
+        if (!val) {
+          images[left].attr({opacity: 1});
+        }
+
         _.each(left_tops, function (left_top) {
           hide(left_top, left);
           top(left_top);
@@ -266,9 +273,9 @@ $(function () {
         svgs[data.tile.i].animate({opacity: 0}, 300, '>', function () {
           shadowing(data.tile);
           svgs[data.tile.i].remove();
-          makeBetterVisibility(data.tile, false);
         });
       }
+      makeBetterVisibility(data.tile, false);
     }
 
     function onDeleteMessage(data) {
