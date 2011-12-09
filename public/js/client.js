@@ -68,13 +68,6 @@ $(function () {
       }
     }
 
-    function updateTileState(cb) {
-      return function (data) {
-        STATE.tiles[data.tile.i] = data.tile;
-        cb(data);
-      };
-    }
-
     function updateMapState(cb) {
       return function (map) {
         STATE.current_map = map;
@@ -278,12 +271,6 @@ $(function () {
       makeBetterVisibility(data.tile, false);
     }
 
-    function onDeleteMessage(data) {
-      _.each(data.tiles, function (tile) {
-        updateTileState(onDelete)({tile: tile, origin: data.origin});
-      });
-    }
-
     function renderTile(tile) {
       var coords = _getRealCoordinates(tile)
         , x = coords.x
@@ -354,7 +341,7 @@ $(function () {
       , right_both: shadow_right_both
       };
 
-      shape.click(function () {
+      shape.click(function (event) {
         TILE.onClicked(STATE
         , function firstSelection(tile) {
             onSelected({tile: tile});
@@ -371,7 +358,10 @@ $(function () {
             onUnselected({tile: tile});
           }
         )(tile);
-        socket.emit('tile.clicked', {tile: tile, origin: user_data._id});
+
+        if (!event.foreign) {
+          socket.emit('tile.clicked', {tile: tile, origin: user_data._id});
+        }
       });
 
       shape.hover(function () {
@@ -412,9 +402,14 @@ $(function () {
     drawBoard(STATE.tiles);
 
     // game events
-    socket.on('tile.selected', updateTileState(onSelected));
-    socket.on('tile.unselected', updateTileState(onUnselected));
-    socket.on('tiles.deleted', onDeleteMessage);
+    socket.on('tile.clicked', function (data) {
+      if (data.origin !== user_data._id) {
+        var evObj = document.createEvent('MouseEvents');
+        evObj.initEvent('click', true, false);
+        evObj.foreign = true;
+        shapes[data.tile.i].node.dispatchEvent(evObj);
+      }
+    });
 
     socket.on('map.changed', updateMapState(function (map) {
       STATE.current_map = map;

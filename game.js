@@ -65,21 +65,17 @@ module.exports.spawn = function (options) {
     // when a tile is being clicked
     socket.on('tile.clicked', function (data) {
       var tile = data.tile
-        , origin = data.origin;
+        , origin = data.origin
+        , noop = function () {};
+
+      room.emit('tile.clicked', {tile: tile, origin: origin});
 
       Tile.onClicked(STATE
-      , function firstSelection(tile) {
-        room.emit('tile.selected', {tile: STATE.tiles[tile.i], origin: origin});
-      }
+      , noop
       , function secondSelection(tile, selected_tile, points) {
         // TODO: group this three events
         room.emit('map.changed', STATE.current_map);
         room.emit('num_pairs.changed', STATE.num_pairs);
-        room.emit('tiles.deleted', {
-          tiles: [STATE.tiles[tile.i], STATE.tiles[selected_tile.i]]
-        , points: points
-        , origin: origin
-        });
 
         if (!STATE.num_pairs || !STATE.remaining_tiles) {
           STATE.finished = true;
@@ -102,12 +98,8 @@ module.exports.spawn = function (options) {
           });
         }
       }
-      , function notMatching(tile, selected_tile) {
-        if (selected_tile.i !== tile.i) {
-          room.emit('tile.unselected', {tile: STATE.tiles[selected_tile.i], origin: origin});
-        }
-        room.emit('tile.unselected', {tile: STATE.tiles[tile.i], origin: origin});
-      })(tile);
+      , noop
+      )(tile);
     });
 
     // mouse.js

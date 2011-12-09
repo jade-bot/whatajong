@@ -140,7 +140,7 @@
           STATE.num_pairs = TILE.getNumPairs(STATE.tiles);
           points = (TILE.POINTS_PER_SECOND * 3) + Math.ceil(
                       (TILE.TOTAL_TILES - STATE.remaining_tiles) / TILE.TOTAL_TILES * TILE.POINTS_PER_SECOND * 60
-                    );
+                   );
           STATE.points += points;
           secondSelection(tile, STATE.selected_tile, points);
           STATE.selected_tile = null;
