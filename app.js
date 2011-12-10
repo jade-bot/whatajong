@@ -151,7 +151,12 @@ http.get('/game/:room_id', authorize, function (req, res, next) {
       if (isOwner(req)) {
         db.rooms.insert(query, function (error, rooms) {
           if (error) return next(error);
-          require('./game').spawn({io: io, room_id: rooms[0]._id.toString(), db: db});
+          require('./game').spawn({
+            io: io
+          , room_id: rooms[0]._id.toString()
+          , host_id: req.param('room_id')
+          , db: db
+          });
           renderRoom(rooms[0]);
         });
       } else {

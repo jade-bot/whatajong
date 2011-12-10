@@ -1,5 +1,5 @@
 // info
-input#room_id(type='hidden', value= room._id)
+input#room_host_id(type='hidden', value= room.host_id)
 input#user_id(type='hidden', value= user._id)
 input#user_name(type='hidden', value= user.name)
 input#user_picture(type= 'hidden', value= user.picture)
@@ -23,8 +23,8 @@ input#user_picture(type= 'hidden', value= user.picture)
       | Your score is:
       span.total_score 250
       = ' points'
-    a.back.btn.blue(href= '/') Leave the game
-    a.dialog_yes.btn(href= '') Play again
+    a.leave.btn.blue(href= '/') Leave the game
+    a.dialog_yes.btn(href= '#') Play again
 
 // list of connected users
 ul#players

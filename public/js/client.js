@@ -14,13 +14,14 @@ $(function () {
     , CANVAS_WIDTH = (ROWS * TILE_WIDTH) + (2 * SIDE_SIZE)
     , CANVAS_HEIGHT = (COLUMNS * TILE_HEIGHT) + (2 * SIDE_SIZE)
     , paper = Raphael($('#canvas').get(0), CANVAS_WIDTH, CANVAS_HEIGHT)
+    , room_host_id = $('#room_host_id').val()
     , user_data = { _id: $('#user_id').val()
                   , name: $('#user_name').val()
                   , img: $('#user_picture').val()
                   }
     , svgs = [], images = [], shapes = [], shadows = [];
 
-  socket = io.connect('/' + $('#room_id').val());
+  socket = io.connect('/' + room_host_id);
 
   /**
    * Adds the new player to the room view
@@ -459,15 +460,15 @@ $(function () {
   // room socket events
   socket.on('start', startGame);
   socket.on('players.add', addPlayer);
-  socket.on('players.delete', function (data) {
-    if (data.id !== socket.socket.sessionid) {
-      $('#player_' + data.id).remove();
+  socket.on('players.delete', function (user) {
+    if (user.id !== user_data._id) {
+      $('#player_' + user.id).remove();
     }
   });
 
   socket.emit('connect', user_data, function (players) {
     _.each(players, function (user) {
-      if (user.id !== socket.socket.sessionid) {
+      if (user.id !== user_data._id) {
         addPlayer(user);
       }
     });

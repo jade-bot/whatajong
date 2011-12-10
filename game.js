@@ -3,23 +3,24 @@ var _getDeck = require('./lib/get_deck')
 
 GLOBAL._ = require('underscore');
 
-function _defaultState() {
-  return { tiles: []
-         , time: 0
-         , points: 250
-         , selected_tile: null
-         , players: {}
-         , started: false
-         , finished: false
-         };
-}
-
 module.exports.spawn = function (options) {
+
+  function _defaultState() {
+    return { tiles: []
+           , time: 0
+           , points: 250
+           , selected_tile: null
+           , players: {}
+           , started: false
+           , finished: false
+           };
+  }
+
   var STATE = _defaultState()
     , gamesManager = require('./lib/games')(options, STATE)
     , Tile, room;
 
-  room = options.io.of('/' + options.room_id).on('connection', function onSpawn(socket) {
+  room = options.io.of('/' + options.host_id).on('connection', function onSpawn(socket) {
 
     function _instantiateTiles(tiles) {
       var map = STATE.current_map
@@ -38,6 +39,11 @@ module.exports.spawn = function (options) {
           }
         }
       }
+    }
+
+    function _cleanState() {
+      clearInterval(STATE.interval);
+      STATE = _defaultState();
     }
 
     function _eachSecond() {
@@ -110,36 +116,41 @@ module.exports.spawn = function (options) {
 
     // player connection
     socket.on('disconnect', function () {
-      room.emit('players.delete', {id: socket.id});
-      delete STATE.players[socket.id];
+      socket.get('id', function (error, id) {
+        if (error) throw Error('Error getting the id');
 
-      // save the unfinished game
-      if (STATE.started && !STATE.finished) {
-        gamesManager.saveGame(
-          [socket.id]
-        , { finished: false
-          , remaining_tiles: STATE.remaining_tiles
-          , points: 0
-          , time: STATE.time
-        });
-      }
+        room.emit('players.delete', {id: id});
+        delete STATE.players[id];
 
-      if (!Object.keys(STATE.players).length) {
-        options.db.rooms.remove({_id: require('mongojs').ObjectId(options.room_id)});
-        clearInterval(STATE.interval);
-        STATE = null;
-      }
+        // save the unfinished game
+        if (STATE.started && !STATE.finished) {
+          gamesManager.saveGame(
+            [id]
+          , { finished: false
+            , remaining_tiles: STATE.remaining_tiles
+            , points: 0
+            , time: STATE.time
+          });
+        }
+
+        if (!Object.keys(STATE.players).length) {
+          options.db.rooms.remove({_id: require('mongojs').ObjectId(options.room_id)});
+          _cleanState();
+        }
+      });
     });
 
     socket.on('connect', function (data, cb) {
-      data.id = socket.id;
-      STATE.players[socket.id] = data;
-      room.emit('players.add', data);
-      cb(STATE.players);
+      socket.set('id', data._id, function () {
+        data.id = data._id;
+        STATE.players[data.id] = data;
+        room.emit('players.add', data);
+        cb(STATE.players);
 
-      if (STATE.started) {
-        socket.emit('start', STATE);
-      }
+        if (STATE.started) {
+          socket.emit('start', STATE);
+        }
+      });
     });
 
     // game bootstrap! :)
@@ -151,8 +162,7 @@ module.exports.spawn = function (options) {
     });
 
     socket.on('restart', function (data) {
-      clearInterval(STATE.interval);
-      STATE = _defaultState();
+      _cleanState();
       gamesManager = require('./lib/games')(options, STATE);
       _initState();
       room.emit('start', STATE);
