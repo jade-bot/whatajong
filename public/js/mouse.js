@@ -22,7 +22,7 @@ $(function () {
     $('#mouse_' + data.id).animate({
       left: (data.x - 2) + 'px'
     , top: (data.y - 2) + 'px'
-    }, 100, 'linear');
+    }, 20, 'linear');
   }
 
   $('#canvas').mousemove(
@@ -30,20 +30,14 @@ $(function () {
       socket.emit('mouse.move', {
         x: e.pageX - $('#canvas').offset().left
       , y: e.pageY - $('#canvas').offset().top
-      , w: $('#canvas').width()
-      , h: $('#canvas').height()
       , name: $('#user_name').val()
       });
-    }, 100)
+    }, 40)
   );
 
   socket.on('players.delete', function (data) {
     $('#mouse_' + data.id).remove();
   });
 
-  socket.on('mouse.move', function (data) {
-    if (data.id !== socket.socket.sessionid) {
-      move(data);
-    }
-  });
+  socket.on('mouse.move', move);
 });

@@ -69,17 +69,14 @@ module.exports.spawn = function (options) {
     }
 
     // when a tile is being clicked
-    socket.on('tile.clicked', function (data) {
-      var tile = data.tile
-        , origin = data.origin
-        , noop = function () {};
+    socket.on('tile.clicked', function (tile) {
+      var noop = function () {};
 
-      room.emit('tile.clicked', {tile: tile, origin: origin});
+      socket.broadcast.emit('tile.clicked', tile);
 
       Tile.onClicked(STATE
       , noop
       , function secondSelection(tile, selected_tile, points) {
-        // TODO: group this three events
         room.emit('map.changed', STATE.current_map);
         room.emit('num_pairs.changed', STATE.num_pairs);
 
@@ -110,8 +107,7 @@ module.exports.spawn = function (options) {
 
     // mouse.js
     socket.on('mouse.move', function (data) {
-      data.id = socket.id;
-      room.emit('mouse.move', data);
+      socket.broadcast.emit('mouse.move', data);
     });
 
     // player connection
@@ -119,7 +115,7 @@ module.exports.spawn = function (options) {
       socket.get('id', function (error, id) {
         if (error) throw Error('Error getting the id');
 
-        room.emit('players.delete', {id: id});
+        socket.broadcast.emit('players.delete', {id: id});
         delete STATE.players[id];
 
         // save the unfinished game
@@ -148,7 +144,7 @@ module.exports.spawn = function (options) {
         cb(STATE.players);
 
         if (STATE.started) {
-          socket.emit('start', STATE);
+          socket.emit('init', STATE);
         }
       });
     });
@@ -158,7 +154,7 @@ module.exports.spawn = function (options) {
       if (!STATE.started) {
         _initState();
       }
-      room.emit('start', STATE);
+      room.emit('init', STATE);
     });
 
     socket.on('restart', function (data) {

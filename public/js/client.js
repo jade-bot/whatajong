@@ -41,7 +41,7 @@ $(function () {
    *
    * @param {Object} STATE
    */
-  function startGame(STATE) {
+  function initGame(STATE) {
     var TILE = Tile(STATE.current_map);
 
     function formatTime(val) {
@@ -365,7 +365,7 @@ $(function () {
         )(tile);
 
         if (!event.foreign) {
-          socket.emit('tile.clicked', {tile: tile, origin: user_data._id});
+          socket.emit('tile.clicked', tile);
         }
       });
 
@@ -407,13 +407,11 @@ $(function () {
     drawBoard(STATE.tiles);
 
     // game events
-    socket.on('tile.clicked', function (data) {
-      if (data.origin !== user_data._id) {
-        var evObj = document.createEvent('MouseEvents');
-        evObj.initEvent('click', true, false);
-        evObj.foreign = true;
-        shapes[data.tile.i].node.dispatchEvent(evObj);
-      }
+    socket.on('tile.clicked', function (tile) {
+      var evObj = document.createEvent('MouseEvents');
+      evObj.initEvent('click', true, false);
+      evObj.foreign = true;
+      shapes[tile.i].node.dispatchEvent(evObj);
     });
 
     socket.on('map.changed', updateMapState(function (map) {
@@ -458,12 +456,10 @@ $(function () {
     });
 
   // room socket events
-  socket.on('start', startGame);
+  socket.on('init', initGame);
   socket.on('players.add', addPlayer);
   socket.on('players.delete', function (user) {
-    if (user.id !== user_data._id) {
-      $('#player_' + user.id).remove();
-    }
+    $('#player_' + user.id).remove();
   });
 
   socket.emit('connect', user_data, function (players) {
