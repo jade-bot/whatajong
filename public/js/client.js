@@ -42,9 +42,9 @@ $(function () {
    * @param {Object} user
    */
   function addPlayer(user) {
-    $('#players li.uknown')
+    $('#players li.unknown')
       .eq(0)
-      .removeClass('uknown')
+      .removeClass('unknown')
       .attr('id', 'player_' + user.id)
       .html('<img src="' + user.img + '" title="' + user.name +
             '" alt="' + user.name + '" width="48" height="48" />')
