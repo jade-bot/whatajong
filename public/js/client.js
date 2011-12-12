@@ -25,7 +25,7 @@ $(function () {
   socket = io.connect('/' + room_id);
 
   // TODO: delete this
-  emit = socket.emit;
+  emit = _.bind(socket.emit, socket);
   //if (document.location.hostname === 'localhost') {
   //  emit = function (ev) {
   //    var args = arguments;
