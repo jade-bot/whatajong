@@ -14,14 +14,27 @@ $(function () {
     , CANVAS_WIDTH = (ROWS * TILE_WIDTH) + (2 * SIDE_SIZE)
     , CANVAS_HEIGHT = (COLUMNS * TILE_HEIGHT) + (2 * SIDE_SIZE)
     , paper = Raphael($('#canvas').get(0), CANVAS_WIDTH, CANVAS_HEIGHT)
-    , room_host_id = $('#room_host_id').val()
+    , room_id = $('#room_id').val()
     , user_data = { _id: $('#user_id').val()
                   , name: $('#user_name').val()
                   , img: $('#user_picture').val()
                   }
+    , emit
     , svgs = [], images = [], shapes = [], shadows = [];
 
-  socket = io.connect('/' + room_host_id);
+  socket = io.connect('/' + room_id);
+
+  // TODO: delete this
+  if (document.location.hostname === 'localhost') {
+    emit = function (ev) {
+      var args = arguments;
+      setTimeout(function () {
+        socket.emit.apply(socket, args);
+      }, 5000);
+    };
+  } else {
+    emit = socket.emit;
+  }
 
   /**
    * Adds the new player to the room view
@@ -30,10 +43,13 @@ $(function () {
    * @param {Object} user
    */
   function addPlayer(user) {
-    $('#players').append('<li id="player_' + user.id + '">'
-                       + '<img src="' + user.img + '" title="' + user.name
-                       + '" alt="' + user.name + '" width="48" height="48" />'
-                       + '</li>');
+    $('#players li.uknown')
+      .eq(0)
+      .removeClass('uknown')
+      .attr('id', 'player_' + user.id)
+      .html('<img src="' + user.img + '" title="' + user.name +
+            '" alt="' + user.name + '" width="48" height="48" />')
+      .append('<div style="background: ' + user.color + '"></div>');
   }
 
   /**
@@ -67,13 +83,6 @@ $(function () {
       } else {
         $('#num_pairs').css({color: 'rgba(0, 0, 0, 0.4)', 'text-shadow': '0px 0px 1px rgba(0, 200, 0, 0.4)'}, 300);
       }
-    }
-
-    function updateMapState(cb) {
-      return function (map) {
-        STATE.current_map = map;
-        cb(map);
-      };
     }
 
     function setShadows(tile) {
@@ -149,11 +158,15 @@ $(function () {
     function makeBetterVisibility(tile, val) {
       var left_tiles = TILE.getLeftTiles(tile);
 
+      function opacity(tile) {
+        return STATE.tiles[tile].predeleted ? ALPHA_HIDE : 1;
+      }
+
       function hide(left_top, left) {
         var covering_top = TILE.getTopCoveringTile(STATE.tiles[left]);
 
         if (!left_top.is_deleted || !val) {
-          svgs[left_top].attr({opacity: val ? ALPHA_HIDE : 1});
+          svgs[left_top].attr({opacity: val ? ALPHA_HIDE : opacity(left_top)});
           if (left_top === covering_top && val) {
             images[left].attr({opacity: 0});
           }
@@ -166,7 +179,7 @@ $(function () {
         // handles the edge case when the top_tile is deleted
         // but we need to recover the alpha
         if (!val) {
-          images[left].attr({opacity: 1});
+          images[left].attr({opacity: opacity(left)});
         }
 
         _.each(left_tops, function (left_top) {
@@ -216,31 +229,35 @@ $(function () {
       return {x: x, y: y};
     }
 
-    function onSelected(data) {
-      if (!data.origin || data.origin !== user_data._id) {
-        document.getElementById('s_click').play();
+    function paintAsSelected(tile, color) {
+      if (!shapes[tile.i].removed) {
+        shapes[tile.i].attr({fill: color || STATE.players[tile.player_id].color, 'fill-opacity': 0.5});
       }
-      shapes[data.tile.i].attr({fill: '#FFCC33', 'fill-opacity': 0.5});
     }
 
-    function onUnselected(data) {
-      if (!data.origin || data.origin !== user_data._id) {
-        document.getElementById('s_grunt').play();
-        svgs[data.tile.i].animate({
+    function paintAsUnselected(tile) {
+      if (!shapes[tile.i].removed) {
+        shapes[tile.i].attr({fill: '#FFFFFF', 'fill-opacity': 0});
+      }
+    }
+
+    function onUnselected(tile) {
+      if (!shapes[tile.i].removed) {
+        svgs[tile.i].animate({
           '20%': {transform: 'T3,0'}
         , '40%': {transform: 'T-3,0'}
         , '60%': {transform: 'T3,0'}
         , '80%': {transform: 'T-3,0'}
         , '100%': {transform: 'T0,0'}
-        }, 500, 'linear');
-      }
+        }, 250, 'linear');
 
-      setTimeout(function () {
-        shapes[data.tile.i].attr({fill: '#FFFFFF', 'fill-opacity': 0});
-      }, 200);
+        setTimeout(function () {
+          paintAsUnselected(tile);
+        }, 200);
+      }
     }
 
-    function onDelete(data) {
+    function onDelete(tile) {
       function shadowing(tile) {
         _.each(TILE.getLeftTiles(tile), function (el) {
           if (!STATE.tiles[el].is_deleted) {
@@ -265,14 +282,11 @@ $(function () {
         });
       }
 
-      if (!data.origin || data.origin !== user_data._id) {
-        document.getElementById('s_gling').play();
-        svgs[data.tile.i].animate({opacity: 0}, 300, '>', function () {
-          shadowing(data.tile);
-          svgs[data.tile.i].remove();
-        });
-      }
-      makeBetterVisibility(data.tile, false);
+      svgs[tile.i].animate({opacity: 0}, 200, '>', function () {
+        shadowing(tile);
+        svgs[tile.i].remove();
+      });
+      makeBetterVisibility(tile, false);
     }
 
     function renderTile(tile) {
@@ -348,34 +362,51 @@ $(function () {
       shape.click(function (event) {
         TILE.onClicked(STATE
         , function firstSelection(tile) {
-            onSelected({tile: tile});
+            document.getElementById('s_click').play();
+            paintAsSelected(tile, STATE.players[user_data._id].color);
+            emit('tile.clicked', {tile: tile, player_id: user_data._id});
           }
-        , function secondSelection(tile, selected_tile, points) {
+        , function onDelete(tile, selected_tile, points) {
+            document.getElementById('s_click').play();
+            paintAsSelected(tile, STATE.players[user_data._id].color);
             _.each([tile, selected_tile], function (t) {
-              onDelete({tile: t, points: points});
+              svgs[t.i].animate({opacity: 0.3}, 100);
+              STATE.tiles[t.i].predeleted = ALPHA_HIDE;
+            });
+            emit('tile.clicked', {tile: tile, player_id: user_data._id}, function (tile, selected_tile) {
+              console.log('callback', tile, selected_tile);
+              _.each(_.filter([tile, selected_tile], Boolean), function (t) {
+                STATE.tiles[t.i].predeleted = false;
+                if (!t.is_deleted) {
+                  svgs[t.i].attr({opacity: 1});
+                  if (t.selected) {
+                    paintAsSelected(t, STATE.players[t.player_id].color);
+                  } else {
+                    paintAsUnselected(t);
+                  }
+                }
+              });
             });
           }
         , function notMatching(tile, selected_tile) {
+            document.getElementById('s_grunt').play();
             if (selected_tile.i !== tile.i) {
-              shapes[tile.i].attr({fill: '#FFCC33', 'fill-opacity': 0.5});
-              onUnselected({tile: selected_tile});
+              paintAsSelected(tile, STATE.players[user_data._id].color);
+              onUnselected(selected_tile);
             }
-            onUnselected({tile: tile});
+            onUnselected(tile);
+            emit('tile.clicked', {tile: tile, player_id: user_data._id});
           }
-        )(tile);
-
-        if (!event.foreign) {
-          socket.emit('tile.clicked', tile);
-        }
+        )(tile, user_data._id);
       });
 
       shape.hover(function () {
-        if (!STATE.tiles[tile.i].selected && TILE.isFree(STATE.tiles[tile.i])) {
+        if (!STATE.tiles[tile.i].player_id && TILE.isFree(STATE.tiles[tile.i])) {
           this.attr({'fill-opacity': 0.3});
         }
         makeBetterVisibility(STATE.tiles[tile.i], true);
       }, function () {
-        if (!STATE.tiles[tile.i].selected && !STATE.tiles[tile.i].is_deleted) {
+        if (!STATE.tiles[tile.i].player_id && !STATE.tiles[tile.i].is_deleted) {
           this.attr({'fill-opacity': 0});
         }
         makeBetterVisibility(STATE.tiles[tile.i], false);
@@ -391,7 +422,7 @@ $(function () {
           renderTile(tiles[i]);
           setShadows(tiles[i]);
           if (tiles[i].selected) {
-            onSelected(tiles[i]);
+            paintAsSelected(tiles[i]);
           }
         }
       }
@@ -407,17 +438,39 @@ $(function () {
     drawBoard(STATE.tiles);
 
     // game events
-    socket.on('tile.clicked', function (tile) {
-      var evObj = document.createEvent('MouseEvents');
-      evObj.initEvent('click', true, false);
-      evObj.foreign = true;
-      shapes[tile.i].node.dispatchEvent(evObj);
+    socket.on('tile.selected', function (data) {
+      paintAsSelected(data.tile);
     });
 
-    socket.on('map.changed', updateMapState(function (map) {
-      STATE.current_map = map;
+    socket.on('tiles.unselected', function (data) {
+      var selected_tile = STATE.players[user_data._id].selected_tile || {};
+
+      _.each([data.tile, data.selected_tile], function (tile) {
+        if (tile.i !== selected_tile.i) {
+          paintAsUnselected(tile);
+          delete STATE.tiles[tile.i].player_id;
+        }
+      });
+    });
+
+    socket.on('tiles.deleted', function (data) {
+      var selected_tile = STATE.players[user_data._id].selected_tile || {};
+
+      STATE.current_map = data.current_map;
       TILE = Tile(STATE.current_map);
-    }));
+      numPairsChanged(data.num_pairs);
+
+      document.getElementById('s_gling').play();
+      if (data.selected_tile.i !== selected_tile.i || data.tile.i !== selected_tile.i) {
+        STATE.players[user_data._id].selected_tile = null;
+      }
+
+      _.each([data.tile, data.selected_tile], function (tile) {
+        STATE.tiles[tile.i].is_deleted = true;
+        delete STATE.tiles[tile.i].player_id;
+        onDelete(tile);
+      });
+    });
 
     socket.on('tick', function (data) {
       $('#time').text(formatTime(data.time));
@@ -426,22 +479,20 @@ $(function () {
 
     socket.on('game.win', function () {
       APP.Confirm.open($('#win'), function () {
-        socket.emit('restart');
+        emit('restart');
       });
     });
 
     socket.on('game.loose', function () {
       APP.Confirm.open($('#loose'), function () {
-        socket.emit('restart');
+        emit('restart');
       });
     });
-
-    socket.on('num_pairs.changed', numPairsChanged);
   }
 
   // room dom events
   $('.start').click(function () {
-    socket.emit('start');
+    emit('start');
     return false;
   });
 
@@ -459,10 +510,13 @@ $(function () {
   socket.on('init', initGame);
   socket.on('players.add', addPlayer);
   socket.on('players.delete', function (user) {
-    $('#player_' + user.id).remove();
+    $('#player_' + user.id)
+      .attr('id', '')
+      .addClass('uknown')
+      .html('?');
   });
 
-  socket.emit('connect', user_data, function (players) {
+  emit('connect', user_data, function (players) {
     _.each(players, function (user) {
       if (user.id !== user_data._id) {
         addPlayer(user);

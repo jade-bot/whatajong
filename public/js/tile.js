@@ -122,36 +122,41 @@
   };
 
   TILE.onClicked = function (STATE, firstSelection, secondSelection, notMatching) {
-    return function (tile) {
-      var points;
+    return function (tile, player_id) {
+      var points
+        , player = STATE.players[player_id];
 
       if (TILE.isFree(tile)) {
-        // First selection
-        if (STATE.selected_tile === null) {
-          STATE.selected_tile = tile;
-          STATE.tiles[tile.i].selected = true;
-          firstSelection(tile);
-          // Second selection
-        } else if (TILE.areMatching(STATE.selected_tile.cardface, tile.cardface) && STATE.selected_tile.i !== tile.i) {
-          TILE['delete'](STATE.tiles[tile.i]);
-          TILE['delete'](STATE.tiles[STATE.selected_tile.i]);
 
-          STATE.remaining_tiles -= 2;
-          STATE.num_pairs = TILE.getNumPairs(STATE.tiles);
-          points = (TILE.POINTS_PER_SECOND * 3) + Math.ceil(
-                      (TILE.TOTAL_TILES - STATE.remaining_tiles) / TILE.TOTAL_TILES * TILE.POINTS_PER_SECOND * 60
-                   );
-          STATE.points += points;
-          secondSelection(tile, STATE.selected_tile, points);
-          STATE.selected_tile = null;
+        if (STATE.tiles[tile.i].player_id && STATE.tiles[tile.i].player_id !== player_id) {
+          STATE.players[STATE.tiles[tile.i].player_id].selected_tile = null;
+        }
+
+        // First selection
+        if (player.selected_tile === null) {
+          player.selected_tile = tile;
+          STATE.tiles[tile.i].selected = true;
+          STATE.tiles[tile.i].player_id = player_id;
+
+          firstSelection(tile);
+        // Second selection
+        } else if (TILE.areMatching(player.selected_tile.cardface, tile.cardface)
+                && !(player.selected_tile.is_deleted || tile.is_deleted)
+                && player.selected_tile.i !== tile.i) {
+          STATE.tiles[tile.i].selected = true;
+          STATE.tiles[tile.i].player_id = player_id;
+          secondSelection(tile, player.selected_tile, points);
+          player.selected_tile = null;
         // don't match or the same tile
         } else {
-          if (STATE.selected_tile.i !== tile.i) {
-            STATE.tiles[STATE.selected_tile.i].selected = false;
+          if (player.selected_tile.i !== tile.i) {
+            STATE.tiles[player.selected_tile.i].selected = false;
+            delete STATE.tiles[player.selected_tile.i].player_id;
           }
           STATE.tiles[tile.i].selected = false;
-          notMatching(tile, STATE.selected_tile);
-          STATE.selected_tile = null;
+          delete STATE.tiles[tile.i].player_id;
+          notMatching(tile, player.selected_tile);
+          player.selected_tile = null;
         }
       }
     };

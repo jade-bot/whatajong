@@ -1,4 +1,5 @@
 var _getDeck = require('./lib/get_deck')
+  , _player_colors = ['#ff6666', '#6666ff', '#66ff66', '#ffff66', '#66ffff', '#ff66ff']
   , _shuffle = require('./lib/shuffle');
 
 GLOBAL._ = require('underscore');
@@ -9,7 +10,6 @@ module.exports.spawn = function (options) {
     return { tiles: []
            , time: 0
            , points: 250
-           , selected_tile: null
            , players: {}
            , started: false
            , finished: false
@@ -20,7 +20,7 @@ module.exports.spawn = function (options) {
     , gamesManager = require('./lib/games')(options, STATE)
     , Tile, room;
 
-  room = options.io.of('/' + options.host_id).on('connection', function onSpawn(socket) {
+  room = options.io.of('/' + options.room_id).on('connection', function onSpawn(socket) {
 
     function _instantiateTiles(tiles) {
       var map = STATE.current_map
@@ -69,16 +69,36 @@ module.exports.spawn = function (options) {
     }
 
     // when a tile is being clicked
-    socket.on('tile.clicked', function (tile) {
-      var noop = function () {};
+    socket.on('tile.clicked', function (data, cb) {
+      var tile = data.tile
+        , player_id = data.player_id;
 
-      socket.broadcast.emit('tile.clicked', tile);
+      cb = cb || function () {};
 
       Tile.onClicked(STATE
-      , noop
+      , function (tile) {
+          socket.broadcast.emit('tile.selected', {tile: STATE.tiles[tile.i], player_id: player_id});
+          cb(STATE.tiles[tile.i]);
+        }
       , function secondSelection(tile, selected_tile, points) {
-        room.emit('map.changed', STATE.current_map);
-        room.emit('num_pairs.changed', STATE.num_pairs);
+        Tile['delete'](STATE.tiles[tile.i]);
+        Tile['delete'](STATE.tiles[STATE.players[player_id].selected_tile.i]);
+        cb(STATE.tiles[tile.i], STATE.tiles[STATE.players[player_id].selected_tile.i]);
+
+        STATE.remaining_tiles -= 2;
+        STATE.num_pairs = Tile.getNumPairs(STATE.tiles);
+        points = (Tile.POINTS_PER_SECOND * 3) + Math.ceil(
+                    (Tile.TOTAL_TILES - STATE.remaining_tiles) / Tile.TOTAL_TILES * Tile.POINTS_PER_SECOND * 60
+                 );
+        STATE.points += points;
+
+        room.emit('tiles.deleted', {
+          tile: tile
+        , selected_tile: selected_tile
+        , player_id: player_id
+        , current_map: STATE.current_map
+        , num_pairs: STATE.num_pairs
+        });
 
         if (!STATE.num_pairs || !STATE.remaining_tiles) {
           STATE.finished = true;
@@ -101,13 +121,26 @@ module.exports.spawn = function (options) {
           });
         }
       }
-      , noop
-      )(tile);
+      , function noMatching(tile, selected_tile) {
+          cb(STATE.tiles[tile.i], STATE.tiles[STATE.players[player_id].selected_tile.i]);
+          socket.broadcast.emit('tiles.unselected', {
+            tile: STATE.tiles[tile.i]
+          , selected_tile: STATE.tiles[selected_tile.i]
+          });
+        }
+      )(tile, player_id);
     });
 
     // mouse.js
     socket.on('mouse.move', function (data) {
-      socket.broadcast.emit('mouse.move', data);
+      socket.get('id', function (error, id) {
+        if (error) throw Error('Error getting the id');
+        data.id = id;
+        data.color = STATE.players[id].color.slice(1).split(/(..)/).filter(Boolean).map(function (s) {
+          return parseInt(s, 16);
+        });
+        socket.broadcast.emit('mouse.move', data);
+      });
     });
 
     // player connection
@@ -116,7 +149,6 @@ module.exports.spawn = function (options) {
         if (error) throw Error('Error getting the id');
 
         socket.broadcast.emit('players.delete', {id: id});
-        delete STATE.players[id];
 
         // save the unfinished game
         if (STATE.started && !STATE.finished) {
@@ -139,8 +171,17 @@ module.exports.spawn = function (options) {
     socket.on('connect', function (data, cb) {
       socket.set('id', data._id, function () {
         data.id = data._id;
-        STATE.players[data.id] = data;
-        room.emit('players.add', data);
+        if (!STATE.players[data.id]) {
+          data.selected_tile = null;
+          delete data._id;
+          data.color = _.find(_player_colors, function (color) {
+            return !_.any(STATE.players, function (player) {
+              return player.color === color;
+            });
+          });
+          STATE.players[data.id] = data;
+        }
+        room.emit('players.add', STATE.players[data.id]);
         cb(STATE.players);
 
         if (STATE.started) {

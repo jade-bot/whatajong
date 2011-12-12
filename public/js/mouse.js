@@ -16,7 +16,8 @@ $(function () {
   function move(data) {
     if (!$('#mouse_' + data.id).length) {
       $('#canvas').append('<span class="mouse" id="mouse_' + data.id
-                        + '">' + data.name.split(' ')[0] + '</span>');
+                        + '" style="background-color: rgba(' + data.color.join(',') + ', 0.4);">'
+                        + data.name.split(' ')[0] + '</span>');
     }
 
     $('#mouse_' + data.id).animate({

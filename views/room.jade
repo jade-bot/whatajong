@@ -1,5 +1,5 @@
 // info
-input#room_host_id(type='hidden', value= room.host_id)
+input#room_id(type='hidden', value= room._id)
 input#user_id(type='hidden', value= user._id)
 input#user_name(type='hidden', value= user.name)
 input#user_picture(type= 'hidden', value= user.picture)
@@ -28,6 +28,12 @@ input#user_picture(type= 'hidden', value= user.picture)
 
 // list of connected users
 ul#players
+  li.uknown ?
+  li.uknown ?
+  li.uknown ?
+  li.uknown ?
+  li.uknown ?
+  li.uknown ?
 
 #paused
   h2 Welcome #{user.name}
