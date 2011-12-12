@@ -25,16 +25,15 @@ $(function () {
   socket = io.connect('/' + room_id);
 
   // TODO: delete this
-  if (document.location.hostname === 'localhost') {
-    emit = function (ev) {
-      var args = arguments;
-      setTimeout(function () {
-        socket.emit.apply(socket, args);
-      }, 5000);
-    };
-  } else {
-    emit = socket.emit;
-  }
+  emit = socket.emit;
+  //if (document.location.hostname === 'localhost') {
+  //  emit = function (ev) {
+  //    var args = arguments;
+  //    setTimeout(function () {
+  //      socket.emit.apply(socket, args);
+  //    }, 5000);
+  //  };
+  //}
 
   /**
    * Adds the new player to the room view
