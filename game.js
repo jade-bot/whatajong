@@ -91,6 +91,7 @@ module.exports.spawn = function (options) {
                     (Tile.TOTAL_TILES - STATE.remaining_tiles) / Tile.TOTAL_TILES * Tile.POINTS_PER_SECOND * 60
                  );
         STATE.points += points;
+        STATE.players[player_id].num_pairs++;
 
         room.emit('tiles.deleted', {
           tile: tile
@@ -98,6 +99,7 @@ module.exports.spawn = function (options) {
         , player_id: player_id
         , current_map: STATE.current_map
         , num_pairs: STATE.num_pairs
+        , player_num_pairs: STATE.players[player_id].num_pairs
         });
 
         if (!STATE.num_pairs || !STATE.remaining_tiles) {
@@ -106,10 +108,10 @@ module.exports.spawn = function (options) {
 
           // loose
           if (!STATE.remaining_tiles) {
-            room.emit('game.win');
+            room.emit('game.win', STATE.players);
           // win
           } else {
-            room.emit('game.loose');
+            room.emit('game.loose', STATE.players);
           }
 
           gamesManager.saveGame(
@@ -136,9 +138,7 @@ module.exports.spawn = function (options) {
       socket.get('id', function (error, id) {
         if (error) throw Error('Error getting the id');
         data.id = id;
-        data.color = STATE.players[id].color.slice(1).split(/(..)/).filter(Boolean).map(function (s) {
-          return parseInt(s, 16);
-        });
+        data.color = STATE.players[id].rgba_color;
         socket.broadcast.emit('mouse.move', data);
       });
     });
@@ -174,10 +174,14 @@ module.exports.spawn = function (options) {
         if (!STATE.players[data.id]) {
           data.selected_tile = null;
           delete data._id;
+          data.num_pairs = 0;
           data.color = _.find(_player_colors, function (color) {
             return !_.any(STATE.players, function (player) {
               return player.color === color;
             });
+          });
+          data.rgba_color = data.color.slice(1).split(/(..)/).filter(Boolean).map(function (s) {
+            return parseInt(s, 16);
           });
           STATE.players[data.id] = data;
         }

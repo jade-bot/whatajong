@@ -22,15 +22,19 @@ h1 {
 h1 a {
   font-size: 36pt;
   color: #FFC;
-  font-family: 'Bowlby One';
+  font-family: 'Bowlby One', sans-serif;
   text-shadow: 2px 2px 0px #630;
 }
 
 h2 {
-  font-family: 'Bowlby One';
-  margin: 0px 0px 20px;
+  font-family: 'Bowlby One', sans-serif;
+  margin: 0px;
   font-weight: normal;
   color: rgba(0, 0, 0, 0.6);
+}
+
+h3 {
+  margin: 0px 0px 20px;
 }
 
 .paused #playing,
@@ -48,7 +52,7 @@ h2 {
 }
 
 #paused {
-  padding-left: 85px;
+  padding-left: 120px;
 }
 
 #paused p {
@@ -77,14 +81,14 @@ h2 {
 }
 
 #score {
-  font-family: 'Bowlby One';
+  font-family: 'Bowlby One', sans-serif;
   position: absolute;
   top: 0px;
   right: 0px;
 }
 
 #num_pairs {
-  font-family: 'Bowlby One';
+  font-family: 'Bowlby One', sans-serif;
   font-size: 24pt;
   position: absolute;
   top: 50px;
@@ -109,33 +113,34 @@ h2 {
   color: rgba(0, 0, 0, 0.5)
 }
 
-#players {
-  width: 85px;
+.players {
+  width: 120px;
   position: absolute;
   padding: 0px;
 }
 
-#players li{
+.players li{
      -moz-border-radius: 2px;
   -webkit-border-radius: 2px;
           border-radius: 2px;
   background: rgba(0, 0, 0, 0.3);
-  padding: 5px;
+  padding: 4px;
   width: 48px;
   height: 48px;
   display: block;
   margin: 0px 0px 15px;
-  -webkit-box-shadow: 1px 1px 1px #630 inset, 1px 1px 0px #d47543;
-     -mox-box-shadow: 1px 1px 1px #630 inset, 1px 1px 0px #d47543;
-          box-shadow: 1px 1px 1px #630 inset, 1px 1px 0px #d47543;
+  -webkit-box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3) inset, 1px 1px 0px rgba(255, 255, 255, 0.3);
+     -mox-box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3) inset, 1px 1px 0px rgba(255, 255, 255, 0.3);
+          box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3) inset, 1px 1px 0px rgba(255, 255, 255, 0.3);
   font-size: 40px;
-  font-family: 'Bowlby One';
+  font-family: 'Bowlby One', sans-serif;
   line-height: 48px;
   text-align: center;
   position: relative;
+  border: 1px solid rgba(0, 0, 0, 0.3);
 }
 
-#players li div{
+.players li div{
   position: absolute;
   width: 48px;
   height: 48px;
@@ -143,9 +148,46 @@ h2 {
      -moz-border-radius: 2px;
   -webkit-border-radius: 2px;
           border-radius: 2px;
-  top: 1px;
-  left: 1px;
-  opacity: 0.5;
+  top: 0px;
+  left: 0px;
+  opacity: 0.3;
+}
+
+.players li span {
+  position: absolute;
+  top: 0px;
+  font-size: 20px;
+  right: -45px;
+  line-height: 20px;
+  color: white;
+  padding: 5px;
+  display: block;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  width: 28px;
+  text-align: center;
+  color: rgba(0, 0, 0, 0.5);
+     -moz-border-radius: 2px;
+  -webkit-border-radius: 2px;
+          border-radius: 2px;
+  -webkit-box-shadow: 1px 1px 1px rgba(255, 255, 255, 0.3) inset, 1px 1px 2px rgba(0, 0, 0, 0.3);
+     -moz-box-shadow: 1px 1px 1px rgba(255, 255, 255, 0.3) inset, 1px 1px 2px rgba(0, 0, 0, 0.3);
+          box-shadow: 1px 1px 1px rgba(255, 255, 255, 0.3) inset, 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+ul.ranking {
+  position: static;
+  width: 100%;
+}
+
+ul.ranking li {
+  display: inline-block;
+  margin: 0px 74px 15px 0px;
+}
+
+ul.ranking img.medal {
+  position: absolute;
+  top: 26px;
+  right: -41px;
 }
 
 .mouse{

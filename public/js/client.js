@@ -24,14 +24,13 @@ $(function () {
 
   socket = io.connect('/' + room_id);
 
-  // TODO: delete this
   emit = _.bind(socket.emit, socket);
   //if (document.location.hostname === 'localhost') {
   //  emit = function (ev) {
   //    var args = arguments;
   //    setTimeout(function () {
   //      socket.emit.apply(socket, args);
-  //    }, 5000);
+  //    }, 500);
   //  };
   //}
 
@@ -42,13 +41,13 @@ $(function () {
    * @param {Object} user
    */
   function addPlayer(user) {
-    $('#players li.unknown')
+    $('.players.sidebar li.unknown')
       .eq(0)
-      .removeClass('unknown')
-      .attr('id', 'player_' + user.id)
+      .attr('class', 'player_' + user.id)
       .html('<img src="' + user.img + '" title="' + user.name +
             '" alt="' + user.name + '" width="48" height="48" />')
-      .append('<div style="background: ' + user.color + '"></div>');
+      .append('<div style="background: ' + user.color + ';"></div>')
+      .append('<span style="background: rgba(' + user.rgba_color.join(',') + ',0.5);">' + user.num_pairs + '</span>');
   }
 
   /**
@@ -73,7 +72,7 @@ $(function () {
     }
 
     function numPairsChanged(num_pairs) {
-      $('#num_pairs').html(num_pairs + '<span>pairs left</span>');
+      $('#num_pairs').html(num_pairs + '<span>' + (num_pairs === 1 ? 'move' : 'moves') + ' left</span>');
 
       if (num_pairs < 3) {
         $('#num_pairs').css({color: '#f53', 'text-shadow': '0px 0px 3px #f53'}, 300);
@@ -369,11 +368,16 @@ $(function () {
             document.getElementById('s_click').play();
             paintAsSelected(tile, STATE.players[user_data._id].color);
             _.each([tile, selected_tile], function (t) {
-              svgs[t.i].animate({opacity: 0.3}, 100);
+              svgs[t.i].animate({
+                '20%': {opacity: 0.3}
+              , '40%': {opacity: 1}
+              , '60%': {opacity: 0.3}
+              , '80%': {opacity: 1}
+              , '100%': {opacity: 0.3}
+              }, 200);
               STATE.tiles[t.i].predeleted = ALPHA_HIDE;
             });
             emit('tile.clicked', {tile: tile, player_id: user_data._id}, function (tile, selected_tile) {
-              console.log('callback', tile, selected_tile);
               _.each(_.filter([tile, selected_tile], Boolean), function (t) {
                 STATE.tiles[t.i].predeleted = false;
                 if (!t.is_deleted) {
@@ -427,9 +431,31 @@ $(function () {
       }
     }
 
+    /**
+     * Set the winners to the DOM
+     *
+     * @param {Object} players
+     * @return {Array}
+     */
+    function setRanking(id, players) {
+      var top = _.max(_.pluck(players, 'num_pairs'))
+        , $ranking = $(id).find('.ranking')
+        , sorted = _.sortBy(players, function (player) {
+            return -player.num_pairs;
+          });
+
+      $ranking.html('');
+
+      _.each(sorted, function (player) {
+        $ranking.append($('.sidebar .player_' + player.id).clone());
+        if (player.num_pairs === top) {
+          $ranking.find('.player_' + player.id).append('<img class="medal" src="/images/medal.png" />');
+        }
+      });
+    }
+
     // bootstrap
     $('#time').text('00:00');
-    $('.total_score').text(250);
     $('#container').removeClass('paused').addClass('playing');
 
     numPairsChanged(STATE.num_pairs);
@@ -438,12 +464,14 @@ $(function () {
 
     // game events
     socket.on('tile.selected', function (data) {
+      document.getElementById('s_click').play();
       paintAsSelected(data.tile);
     });
 
     socket.on('tiles.unselected', function (data) {
       var selected_tile = STATE.players[user_data._id].selected_tile || {};
 
+      document.getElementById('s_grunt').play();
       _.each([data.tile, data.selected_tile], function (tile) {
         if (tile.i !== selected_tile.i) {
           paintAsUnselected(tile);
@@ -458,6 +486,7 @@ $(function () {
       STATE.current_map = data.current_map;
       TILE = Tile(STATE.current_map);
       numPairsChanged(data.num_pairs);
+      $('.sidebar .player_' + data.player_id + ' span').html(data.player_num_pairs);
 
       document.getElementById('s_gling').play();
       if (data.selected_tile.i !== selected_tile.i || data.tile.i !== selected_tile.i) {
@@ -473,16 +502,17 @@ $(function () {
 
     socket.on('tick', function (data) {
       $('#time').text(formatTime(data.time));
-      $('.total_score').text(data.points);
     });
 
-    socket.on('game.win', function () {
+    socket.on('game.win', function (players) {
+      setRanking('#win', players);
       APP.Confirm.open($('#win'), function () {
         emit('restart');
       });
     });
 
-    socket.on('game.loose', function () {
+    socket.on('game.loose', function (players) {
+      setRanking('#loose', players);
       APP.Confirm.open($('#loose'), function () {
         emit('restart');
       });
@@ -509,9 +539,9 @@ $(function () {
   socket.on('init', initGame);
   socket.on('players.add', addPlayer);
   socket.on('players.delete', function (user) {
-    $('#player_' + user.id)
+    $('.sidebar .player_' + user.id)
       .attr('id', '')
-      .addClass('uknown')
+      .addClass('unknown')
       .html('?');
   });
 

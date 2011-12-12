@@ -7,27 +7,23 @@ input#user_picture(type= 'hidden', value= user.picture)
 #win.dialog
   .dialog_modal
   .dialog_content
-    h2 Congratulations! You win!
-    p
-      | Your score is:
-      span.total_score 250
-      = ' points'
+    h2 Congratulations!
+    h3 You removed all the tiles from the board!
+    ul.players.ranking
     a.back.btn.blue(href= '/') Leave the game
     a.dialog_yes.btn(href= '') Play again
 
 #loose.dialog
   .dialog_modal
   .dialog_content
-    h2 You lost!
-    p
-      | Your score is:
-      span.total_score 250
-      = ' points'
+    h2 Oops!
+    h3 No more moves left
+    ul.players.ranking
     a.leave.btn.blue(href= '/') Leave the game
     a.dialog_yes.btn(href= '#') Play again
 
 // list of connected users
-ul#players
+ul.players.sidebar
   li.unknown ?
   li.unknown ?
   li.unknown ?
