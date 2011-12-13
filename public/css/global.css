@@ -203,6 +203,7 @@ ul.ranking img.medal {
   -webkit-border-radius: 2px;
   border-radius:         2px;
   font-family: Monaco, monospace;
+  pointer-events: none;
 }
 
 #canvas {

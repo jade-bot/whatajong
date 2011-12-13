@@ -85,8 +85,6 @@ module.exports.spawn = function (options) {
           cb(STATE.tiles[tile.i]);
         }
       , function secondSelection(tile, selected_tile, points) {
-        Tile['delete'](STATE.tiles[tile.i]);
-        Tile['delete'](STATE.tiles[STATE.players[player_id].selected_tile.i]);
         cb(STATE.tiles[tile.i], STATE.tiles[STATE.players[player_id].selected_tile.i]);
 
         STATE.remaining_tiles -= 2;

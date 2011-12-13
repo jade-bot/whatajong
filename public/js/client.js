@@ -30,7 +30,7 @@ $(function () {
   //    var args = arguments;
   //    setTimeout(function () {
   //      socket.emit.apply(socket, args);
-  //    }, 500);
+  //    }, 5000);
   //  };
   //}
 
@@ -412,6 +412,7 @@ $(function () {
               svgs[t.i].animate({opacity: 0}, 200, '>');
             });
             emit('tile.clicked', {tile: tile, player_id: user_data._id}, function (tile, selected_tile) {
+              STATE.tiles[selected_tile.i].is_deleted = false;
               _.each(_.filter([tile, selected_tile], Boolean), function (t) {
                 if (!t.is_deleted) {
                   svgs[t.i].attr({opacity: 1});
@@ -472,7 +473,10 @@ $(function () {
     // bootstrap
     $('#time').text('00:00');
     $('#container').removeClass('paused').addClass('playing');
-    $('.sidebar.players li span').html('0');
+
+    _.each(STATE.players, function (player) {
+      $('.sidebar .player_' + player.id + ' span').html(player.num_pairs);
+    });
 
     _numPairsChanged(STATE.num_pairs);
 
@@ -480,20 +484,19 @@ $(function () {
 
     // game events
     socket.on('tile.selected', function (data) {
-      document.getElementById('s_click').play();
-      paintAsSelected(data.tile);
+      if (!STATE.tiles[data.tile.i].is_deleted) {
+        document.getElementById('s_click').play();
+        paintAsSelected(data.tile);
+      }
     });
 
     socket.on('tiles.unselected', function (data) {
       var selected_tile = STATE.players[user_data._id].selected_tile || {};
 
-      document.getElementById('s_grunt').play();
-      _.each([data.tile, data.selected_tile], function (tile) {
-        if (tile.i !== selected_tile.i) {
-          paintAsUnselected(tile);
-          delete STATE.tiles[tile.i].player_id;
-        }
-      });
+      if (data.selected_tile.i !== selected_tile.i && !STATE.tiles[data.selected_tile.i].is_deleted) {
+        paintAsUnselected(data.selected_tile);
+        delete STATE.tiles[data.selected_tile.i].player_id;
+      }
     });
 
     socket.on('tiles.deleted', function (data) {
