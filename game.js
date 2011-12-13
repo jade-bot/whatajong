@@ -43,7 +43,7 @@ module.exports.spawn = function (options) {
 
     function _cleanState() {
       clearInterval(STATE.interval);
-      STATE = _defaultState();
+      STATE = null;
     }
 
     function _eachSecond() {
@@ -66,6 +66,10 @@ module.exports.spawn = function (options) {
       STATE.remaining_tiles = Tile.TOTAL_TILES;
       STATE.interval = setInterval(_eachSecond, 1000);
       STATE.started = true;
+      _.each(STATE.players, function (player) {
+        player.selected_tile = null;
+        player.num_pairs = 0;
+      });
     }
 
     // when a tile is being clicked
@@ -172,8 +176,8 @@ module.exports.spawn = function (options) {
       socket.set('id', data._id, function () {
         data.id = data._id;
         if (!STATE.players[data.id]) {
-          data.selected_tile = null;
           delete data._id;
+          data.selected_tile = null;
           data.num_pairs = 0;
           data.color = _.find(_player_colors, function (color) {
             return !_.any(STATE.players, function (player) {
@@ -203,10 +207,12 @@ module.exports.spawn = function (options) {
     });
 
     socket.on('restart', function (data) {
-      _cleanState();
+      var players = STATE.players;
+      STATE = _defaultState();
+      STATE.players = players;
       gamesManager = require('./lib/games')(options, STATE);
       _initState();
-      room.emit('start', STATE);
+      room.emit('init', STATE);
     });
   });
 };

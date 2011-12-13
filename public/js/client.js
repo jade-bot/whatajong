@@ -40,7 +40,7 @@ $(function () {
    *
    * @param {Object} user
    */
-  function addPlayer(user) {
+  function _addPlayer(user) {
     $('.players.sidebar li.unknown')
       .eq(0)
       .attr('class', 'player_' + user.id)
@@ -51,37 +51,121 @@ $(function () {
   }
 
   /**
+   * Formats the time with leading zeros
+   *
+   * @param {Number} val
+   * @return {String}
+   */
+  function _formatTime(val) {
+    var hours = val / 3600 | 0
+      , minutes = (val - (hours * 3600)) / 60 | 0
+      , seconds = val - (hours * 3600) - (minutes * 60)
+      , hours_s = hours < 10 ? "0" + hours : hours
+      , minutes_s = minutes < 10 ? "0" + minutes : minutes
+      , seconds_s = seconds < 10 ? "0" + seconds : seconds;
+
+    hours_s = hours === 0 ? "" : hours_s + ":";
+
+    return hours_s + minutes_s + ":" + seconds_s;
+  }
+
+  /**
+   * Updates the number of pairs remaning
+   *
+   * @param {String} cardface
+   */
+  function _numPairsChanged(num_pairs) {
+    $('#num_pairs').html(num_pairs + '<span>' + (num_pairs === 1 ? 'move' : 'moves') + ' left</span>');
+
+    if (num_pairs < 3) {
+      $('#num_pairs').css({color: '#f53', 'text-shadow': '0px 0px 3px #f53'}, 300);
+    } else if (num_pairs < 5) {
+      $('#num_pairs').css({color: '#fd3', 'text-shadow': '0px 0px 2px #fd3'}, 300);
+    } else {
+      $('#num_pairs').css({color: 'rgba(0, 0, 0, 0.4)', 'text-shadow': '0px 0px 1px rgba(0, 200, 0, 0.4)'}, 300);
+    }
+  }
+
+  /**
+   * Gets the clipping rectangle for the image given a cardface
+   *
+   * @param {String} cardface
+   * @return {Object}
+   */
+  function _getImageLocation(cardface) {
+    var type = cardface.slice(0, 1)
+      , number = cardface.slice(1, 2);
+
+    switch (type) {
+    case 'b':
+      return {y: 0, x: (+number - 1) * TILE_WIDTH};
+    case 'c':
+      return {y: TILE_HEIGHT, x: (+number - 1) * TILE_WIDTH};
+    case 'o':
+      return {y: 2 * TILE_HEIGHT, x: (+number - 1) * TILE_WIDTH};
+    case 'h':
+      return {y: 3 * TILE_HEIGHT, x: (+number - 1) * TILE_WIDTH};
+    case 'w':
+      return {y: 4 * TILE_HEIGHT, x: (+number + 2) * TILE_WIDTH};
+    case 'd':
+      switch (number) {
+      case 'c':
+        return {y: 4 * TILE_HEIGHT, x: 0};
+      case 'f':
+        return {y: 4 * TILE_HEIGHT, x: TILE_WIDTH};
+      case 'p':
+        return {y: 4 * TILE_HEIGHT, x: 2 * TILE_WIDTH};
+      }
+    }
+  }
+
+  /**
+   * Calculates the coordinates of the tile
+   *
+   * @param {Object} tile
+   * @return {Object}
+   */
+  function _getRealCoordinates(tile) {
+    var x = (tile.x - 1) * TILE_WIDTH / 2 | 0
+      , y = SIDE_SIZE + (tile.y * TILE_HEIGHT / 2 | 0)
+      , z = tile.z;
+
+    x = z ? x + (z * SIDE_SIZE) : x;
+    y = z ? y - (z * SIDE_SIZE) : y;
+
+    return {x: x, y: y};
+  }
+
+  /**
+   * Set the winners to the DOM
+   *
+   * @param {Object} players
+   * @return {Array}
+   */
+  function setRanking(id, players) {
+    var top = _.max(_.pluck(players, 'num_pairs'))
+      , $ranking = $(id).find('.ranking')
+      , sorted = _.sortBy(players, function (player) {
+          return -player.num_pairs;
+        });
+
+    $ranking.html('');
+
+    _.each(sorted, function (player) {
+      $ranking.append($('.sidebar .player_' + player.id).clone());
+      if (player.num_pairs === top) {
+        $ranking.find('.player_' + player.id).append('<img class="medal" src="/images/medal.png" />');
+      }
+    });
+  }
+
+  /**
    * Inits the state and set up the board
    *
    * @param {Object} STATE
    */
   function initGame(STATE) {
     var TILE = Tile(STATE.current_map);
-
-    function formatTime(val) {
-      var hours = val / 3600 | 0
-        , minutes = (val - (hours * 3600)) / 60 | 0
-        , seconds = val - (hours * 3600) - (minutes * 60)
-        , hours_s = hours < 10 ? "0" + hours : hours
-        , minutes_s = minutes < 10 ? "0" + minutes : minutes
-        , seconds_s = seconds < 10 ? "0" + seconds : seconds;
-
-      hours_s = hours === 0 ? "" : hours_s + ":";
-
-      return hours_s + minutes_s + ":" + seconds_s;
-    }
-
-    function numPairsChanged(num_pairs) {
-      $('#num_pairs').html(num_pairs + '<span>' + (num_pairs === 1 ? 'move' : 'moves') + ' left</span>');
-
-      if (num_pairs < 3) {
-        $('#num_pairs').css({color: '#f53', 'text-shadow': '0px 0px 3px #f53'}, 300);
-      } else if (num_pairs < 5) {
-        $('#num_pairs').css({color: '#fd3', 'text-shadow': '0px 0px 2px #fd3'}, 300);
-      } else {
-        $('#num_pairs').css({color: 'rgba(0, 0, 0, 0.4)', 'text-shadow': '0px 0px 1px rgba(0, 200, 0, 0.4)'}, 300);
-      }
-    }
 
     function setShadows(tile) {
       var shadow = shadows[tile.i]
@@ -156,15 +240,11 @@ $(function () {
     function makeBetterVisibility(tile, val) {
       var left_tiles = TILE.getLeftTiles(tile);
 
-      function opacity(tile) {
-        return STATE.tiles[tile].predeleted ? ALPHA_HIDE : 1;
-      }
-
       function hide(left_top, left) {
         var covering_top = TILE.getTopCoveringTile(STATE.tiles[left]);
 
         if (!left_top.is_deleted || !val) {
-          svgs[left_top].attr({opacity: val ? ALPHA_HIDE : opacity(left_top)});
+          svgs[left_top].attr({opacity: val ? ALPHA_HIDE : 1});
           if (left_top === covering_top && val) {
             images[left].attr({opacity: 0});
           }
@@ -177,7 +257,7 @@ $(function () {
         // handles the edge case when the top_tile is deleted
         // but we need to recover the alpha
         if (!val) {
-          images[left].attr({opacity: opacity(left)});
+          images[left].attr({opacity: 1});
         }
 
         _.each(left_tops, function (left_top) {
@@ -187,44 +267,6 @@ $(function () {
       }
 
       _.each(left_tiles, top);
-    }
-
-    function getImageLocation(cardface) {
-      var type = cardface.slice(0, 1)
-        , number = cardface.slice(1, 2);
-
-      switch (type) {
-      case 'b':
-        return {y: 0, x: (+number - 1) * TILE_WIDTH};
-      case 'c':
-        return {y: TILE_HEIGHT, x: (+number - 1) * TILE_WIDTH};
-      case 'o':
-        return {y: 2 * TILE_HEIGHT, x: (+number - 1) * TILE_WIDTH};
-      case 'h':
-        return {y: 3 * TILE_HEIGHT, x: (+number - 1) * TILE_WIDTH};
-      case 'w':
-        return {y: 4 * TILE_HEIGHT, x: (+number + 2) * TILE_WIDTH};
-      case 'd':
-        switch (number) {
-        case 'c':
-          return {y: 4 * TILE_HEIGHT, x: 0};
-        case 'f':
-          return {y: 4 * TILE_HEIGHT, x: TILE_WIDTH};
-        case 'p':
-          return {y: 4 * TILE_HEIGHT, x: 2 * TILE_WIDTH};
-        }
-      }
-    }
-
-    function _getRealCoordinates(tile) {
-      var x = (tile.x - 1) * TILE_WIDTH / 2 | 0
-        , y = SIDE_SIZE + (tile.y * TILE_HEIGHT / 2 | 0)
-        , z = tile.z;
-
-      x = z ? x + (z * SIDE_SIZE) : x;
-      y = z ? y - (z * SIDE_SIZE) : y;
-
-      return {x: x, y: y};
     }
 
     function paintAsSelected(tile, color) {
@@ -294,7 +336,7 @@ $(function () {
         , z = tile.z
         , shadow_attr = {stroke: '', fill: '#000', 'fill-opacity': 0.1}
         , set = paper.set()
-        , image_loc = getImageLocation(tile.cardface)
+        , image_loc = _getImageLocation(tile.cardface)
         , left_side, bottom_side, body, shape, shadow_right, shadow_up
         , shadow_up_climb, shadow_right_climb, shadow_up_both, shadow_right_both, image;
 
@@ -365,21 +407,12 @@ $(function () {
             emit('tile.clicked', {tile: tile, player_id: user_data._id});
           }
         , function onDelete(tile, selected_tile, points) {
-            document.getElementById('s_click').play();
             paintAsSelected(tile, STATE.players[user_data._id].color);
             _.each([tile, selected_tile], function (t) {
-              svgs[t.i].animate({
-                '20%': {opacity: 0.3}
-              , '40%': {opacity: 1}
-              , '60%': {opacity: 0.3}
-              , '80%': {opacity: 1}
-              , '100%': {opacity: 0.3}
-              }, 200);
-              STATE.tiles[t.i].predeleted = ALPHA_HIDE;
+              svgs[t.i].animate({opacity: 0}, 200, '>');
             });
             emit('tile.clicked', {tile: tile, player_id: user_data._id}, function (tile, selected_tile) {
               _.each(_.filter([tile, selected_tile], Boolean), function (t) {
-                STATE.tiles[t.i].predeleted = false;
                 if (!t.is_deleted) {
                   svgs[t.i].attr({opacity: 1});
                   if (t.selected) {
@@ -416,6 +449,11 @@ $(function () {
       });
     }
 
+    /**
+     * Draws the board :)
+     *
+     * @param {Array} tiles
+     */
     function drawBoard(tiles) {
       var i, tile;
 
@@ -431,34 +469,12 @@ $(function () {
       }
     }
 
-    /**
-     * Set the winners to the DOM
-     *
-     * @param {Object} players
-     * @return {Array}
-     */
-    function setRanking(id, players) {
-      var top = _.max(_.pluck(players, 'num_pairs'))
-        , $ranking = $(id).find('.ranking')
-        , sorted = _.sortBy(players, function (player) {
-            return -player.num_pairs;
-          });
-
-      $ranking.html('');
-
-      _.each(sorted, function (player) {
-        $ranking.append($('.sidebar .player_' + player.id).clone());
-        if (player.num_pairs === top) {
-          $ranking.find('.player_' + player.id).append('<img class="medal" src="/images/medal.png" />');
-        }
-      });
-    }
-
     // bootstrap
     $('#time').text('00:00');
     $('#container').removeClass('paused').addClass('playing');
+    $('.sidebar.players li span').html('0');
 
-    numPairsChanged(STATE.num_pairs);
+    _numPairsChanged(STATE.num_pairs);
 
     drawBoard(STATE.tiles);
 
@@ -485,7 +501,7 @@ $(function () {
 
       STATE.current_map = data.current_map;
       TILE = Tile(STATE.current_map);
-      numPairsChanged(data.num_pairs);
+      _numPairsChanged(data.num_pairs);
       $('.sidebar .player_' + data.player_id + ' span').html(data.player_num_pairs);
 
       document.getElementById('s_gling').play();
@@ -501,7 +517,7 @@ $(function () {
     });
 
     socket.on('tick', function (data) {
-      $('#time').text(formatTime(data.time));
+      $('#time').text(_formatTime(data.time));
     });
 
     socket.on('game.win', function (players) {
@@ -537,7 +553,7 @@ $(function () {
 
   // room socket events
   socket.on('init', initGame);
-  socket.on('players.add', addPlayer);
+  socket.on('players.add', _addPlayer);
   socket.on('players.delete', function (user) {
     $('.sidebar .player_' + user.id)
       .attr('id', '')
@@ -548,7 +564,7 @@ $(function () {
   emit('connect', user_data, function (players) {
     _.each(players, function (user) {
       if (user.id !== user_data._id) {
-        addPlayer(user);
+        _addPlayer(user);
       }
     });
   });
