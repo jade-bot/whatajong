@@ -15,7 +15,7 @@ a:hover {
 }
 
 h1 {
-  margin: 0px 0px 35px;
+  margin: 0px 0px 35px 20px;
   font-weight: normal;
 }
 
@@ -74,6 +74,14 @@ h3 {
   overflow:hidden;
 }
 
+#welcome{
+  padding: 0px 20px;
+}
+
+#welcome h2{
+  margin-bottom: 20px;
+}
+
 #container {
   margin: 0 auto;
   position: relative;
@@ -119,7 +127,7 @@ h3 {
   padding: 0px;
 }
 
-.players li{
+.player{
      -moz-border-radius: 2px;
   -webkit-border-radius: 2px;
           border-radius: 2px;
@@ -129,9 +137,9 @@ h3 {
   height: 48px;
   display: block;
   margin: 0px 0px 15px;
-  -webkit-box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3) inset, 1px 1px 0px rgba(255, 255, 255, 0.3);
-     -mox-box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3) inset, 1px 1px 0px rgba(255, 255, 255, 0.3);
-          box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3) inset, 1px 1px 0px rgba(255, 255, 255, 0.3);
+  -webkit-box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3) inset, 1px 1px 0px rgba(255, 255, 255, 0.2);
+     -mox-box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3) inset, 1px 1px 0px rgba(255, 255, 255, 0.2);
+          box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3) inset, 1px 1px 0px rgba(255, 255, 255, 0.2);
   font-size: 40px;
   font-family: 'Bowlby One', sans-serif;
   line-height: 48px;
@@ -140,7 +148,11 @@ h3 {
   border: 1px solid rgba(0, 0, 0, 0.3);
 }
 
-.players li div{
+.player img{
+  display: inline-block;
+}
+
+.player div{
   position: absolute;
   width: 48px;
   height: 48px;
@@ -153,7 +165,7 @@ h3 {
   opacity: 0.3;
 }
 
-.players li span {
+li.player span.points {
   position: absolute;
   top: 0px;
   font-size: 20px;
@@ -172,6 +184,16 @@ h3 {
   -webkit-box-shadow: 1px 1px 1px rgba(255, 255, 255, 0.3) inset, 1px 1px 2px rgba(0, 0, 0, 0.3);
      -moz-box-shadow: 1px 1px 1px rgba(255, 255, 255, 0.3) inset, 1px 1px 2px rgba(0, 0, 0, 0.3);
           box-shadow: 1px 1px 1px rgba(255, 255, 255, 0.3) inset, 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+li.player span.host {
+  font-size: 10px;
+  line-height: 10px;
+  font-family: sans-serif;
+  color: #ffc;
+  position: absolute;
+  top: 6px;
+  left: 6px;
 }
 
 ul.ranking {
@@ -280,20 +302,24 @@ ul.ranking img.medal {
 
 .btn {
   cursor: pointer;
+  font-size: 14px;
   display: inline-block;
-  padding: 5px 14px 6px;
+  padding: 4px 13px 5px;
   color: #fff;
   line-height: normal;
 
-     -moz-border-radius: 3px;
-  -webkit-border-radius: 3px;
-          border-radius: 3px;
+     -moz-border-radius: 2px;
+  -webkit-border-radius: 2px;
+          border-radius: 2px;
      -moz-box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 1px 1px 2px rgba(0,0,0,0.4);
   -webkit-box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 1px 1px 2px rgba(0,0,0,0.4);
           box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 1px 1px 2px rgba(0,0,0,0.4);
   text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.25);
-  border-color: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.25);
+  border-width: 1px;
+  border-style: solid;
+  border-color: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.3);
 
+  background-color: #57a957;
   background-repeat: repeat-x;
   background-image: -khtml-gradient(linear, left top, left bottom, from(#62c462), to(#57a957));
   background-image: -moz-linear-gradient(top, #62c462, #57a957);
@@ -338,4 +364,100 @@ ul.ranking img.medal {
   font-size: 22px;
   background: rgba(255, 255, 150, 0.5);
   padding: 2px 5px;
+}
+
+.rooms {
+  padding: 0;
+}
+
+.room {
+     -moz-border-radius: 2px;
+  -webkit-border-radius: 2px;
+          border-radius: 2px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 10px;
+  display: block;
+  margin: 0px 0px 15px;
+  -webkit-box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3) inset, 1px 1px 0px rgba(255, 255, 255, 0.2);
+     -mox-box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3) inset, 1px 1px 0px rgba(255, 255, 255, 0.2);
+          box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3) inset, 1px 1px 0px rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  height: 34px;
+}
+
+.room strong {
+  line-height: 34px;
+}
+
+.room a.btn {
+  float: right;
+}
+
+.room ul{
+  display: inline-block;
+  padding: 0px;
+}
+
+.room strong{
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.room .player {
+  width: 24px;
+  height: 24px;
+  line-height: 32px;
+  display: inline-block;
+  margin: 0 10px 0 0;
+  font-size: 24px;
+}
+
+.play_alone .player {
+  display: inline-block;
+  margin: 0px 10px 0 0;
+}
+
+.play_alone a.btn {
+  height: 48px;
+  line-height: 48px;
+  vertical-align: top;
+  font-size: 24px;
+}
+
+.separator {
+  -webkit-box-shadow: 0px 1px 0px rgba(255, 255, 255, 0.2);
+     -mox-box-shadow: 0px 1px 0px rgba(255, 255, 255, 0.2);
+          box-shadow: 0px 1px 0px rgba(255, 255, 255, 0.2);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.3);
+  margin: 30px 0;
+}
+
+.create_room {
+  display: none;
+  width: 258px;
+}
+
+input.text {
+  margin: 0 10px 0 0;
+     -moz-border-radius: 2px;
+  -webkit-border-radius: 2px;
+          border-radius: 2px;
+  background: #fff;
+  padding: 4px;
+  -webkit-box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3) inset, 1px 1px 0px rgba(255, 255, 255, 0.2);
+     -mox-box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3) inset, 1px 1px 0px rgba(255, 255, 255, 0.2);
+          box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3) inset, 1px 1px 0px rgba(255, 255, 255, 0.2);
+  font-size: 15px;
+  border: 1px solid #741;
+}
+
+.error {
+  padding: 10px;
+  background: rgba(255, 120, 130, 0.7);
+     -moz-border-radius: 2px;
+  -webkit-border-radius: 2px;
+          border-radius: 2px;
+}
+
+.error p {
+  margin-top: 0;
 }

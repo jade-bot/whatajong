@@ -15,6 +15,7 @@ $(function () {
     , CANVAS_HEIGHT = (COLUMNS * TILE_HEIGHT) + (2 * SIDE_SIZE)
     , paper = Raphael($('#canvas').get(0), CANVAS_WIDTH, CANVAS_HEIGHT)
     , room_id = $('#room_id').val()
+    , room_host_id = $('#room_host_id').val()
     , user_data = { _id: $('#user_id').val()
                   , name: $('#user_name').val()
                   , img: $('#user_picture').val()
@@ -43,11 +44,16 @@ $(function () {
   function _addPlayer(user) {
     $('.players.sidebar li.unknown')
       .eq(0)
-      .attr('class', 'player_' + user.id)
+      .attr('class', 'player player_' + user.id)
       .html('<img src="' + user.img + '" title="' + user.name +
             '" alt="' + user.name + '" width="48" height="48" />')
       .append('<div style="background: ' + user.color + ';"></div>')
-      .append('<span style="background: rgba(' + user.rgba_color.join(',') + ',0.5);">' + user.num_pairs + '</span>');
+      .append('<span class="points" style="background: rgba('
+              + user.rgba_color.join(',') + ',0.5);">' + user.num_pairs + '</span>');
+
+    if (user.id === room_host_id) {
+      $('.player_' + user.id).append('<span class="host">host</span>');
+    }
   }
 
   /**
@@ -475,7 +481,7 @@ $(function () {
     $('#container').removeClass('paused').addClass('playing');
 
     _.each(STATE.players, function (player) {
-      $('.sidebar .player_' + player.id + ' span').html(player.num_pairs);
+      $('.sidebar .player_' + player.id + ' .points').html(player.num_pairs);
     });
 
     _numPairsChanged(STATE.num_pairs);
@@ -505,7 +511,7 @@ $(function () {
       STATE.current_map = data.current_map;
       TILE = Tile(STATE.current_map);
       _numPairsChanged(data.num_pairs);
-      $('.sidebar .player_' + data.player_id + ' span').html(data.player_num_pairs);
+      $('.sidebar .player_' + data.player_id + ' .points').html(data.player_num_pairs);
 
       document.getElementById('s_gling').play();
       if (data.selected_tile.i !== selected_tile.i || data.tile.i !== selected_tile.i) {
@@ -564,11 +570,13 @@ $(function () {
       .html('?');
   });
 
-  emit('connect', user_data, function (players) {
-    _.each(players, function (user) {
-      if (user.id !== user_data._id) {
+  emit('connect', user_data, function (error, players) {
+    if (error) {
+      window.location = '/?connect_error=' + error;
+    } else {
+      _.each(players, function (user) {
         _addPlayer(user);
-      }
-    });
+      });
+    }
   });
 });

@@ -20,7 +20,7 @@ module.exports.spawn = function (options) {
     , gamesManager = require('./lib/games')(options, STATE)
     , Tile, room;
 
-  room = options.io.of('/' + options.room_id).on('connection', function onSpawn(socket) {
+  room = options.io.of('/' + options.room_id.toString()).on('connection', function onSpawn(socket) {
 
     function _instantiateTiles(tiles) {
       var map = STATE.current_map
@@ -140,7 +140,11 @@ module.exports.spawn = function (options) {
       socket.get('id', function (error, id) {
         if (error) throw Error('Error getting the id');
         data.id = id;
-        data.color = STATE.players[id].rgba_color;
+        if (STATE.players[id]) {
+          data.color = STATE.players[id].rgba_color;
+        } else {
+          data.color = '#fff';
+        }
         socket.broadcast.emit('mouse.move', data);
       });
     });
@@ -163,36 +167,50 @@ module.exports.spawn = function (options) {
           });
         }
 
+        delete STATE.players[id];
+
         if (!Object.keys(STATE.players).length) {
-          options.db.rooms.remove({_id: require('mongojs').ObjectId(options.room_id)});
+          options.db.rooms.remove({_id: options.room_id});
           _cleanState();
+        } else {
+          options.db.rooms.update({_id: options.room_id}, {'$pull': {players: {id: id}}});
         }
       });
     });
 
     socket.on('connect', function (data, cb) {
+      if (STATE.players[data._id]) {
+        return cb('You are already participating on that room');
+      }
+
       socket.set('id', data._id, function () {
         data.id = data._id;
-        if (!STATE.players[data.id]) {
-          delete data._id;
-          data.selected_tile = null;
-          data.num_pairs = 0;
-          data.color = _.find(_player_colors, function (color) {
-            return !_.any(STATE.players, function (player) {
-              return player.color === color;
-            });
+        delete data._id;
+        data.selected_tile = null;
+        data.num_pairs = 0;
+        data.joined_at = Date.now();
+        data.color = _.find(_player_colors, function (color) {
+          return !_.any(STATE.players, function (player) {
+            return player.color === color;
           });
-          data.rgba_color = data.color.slice(1).split(/(..)/).filter(Boolean).map(function (s) {
-            return parseInt(s, 16);
-          });
-          STATE.players[data.id] = data;
-        }
-        room.emit('players.add', STATE.players[data.id]);
-        cb(STATE.players);
+        });
+        data.rgba_color = data.color.slice(1).split(/(..)/).filter(Boolean).map(function (s) {
+          return parseInt(s, 16);
+        });
+        STATE.players[data.id] = data;
 
-        if (STATE.started) {
-          socket.emit('init', STATE);
-        }
+        options.db.rooms.update({_id: options.room_id}, {'$addToSet': {players: data}}, function (error) {
+          if (error) return cb(error);
+
+          socket.broadcast.emit('players.add', STATE.players[data.id]);
+          cb(null, _.sortBy(STATE.players, function (player) {
+            return (player.id === options.host_id.toString()) ? 0 : player.joined_at;
+          }));
+
+          if (STATE.started) {
+            socket.emit('init', STATE);
+          }
+        });
       });
     });
 

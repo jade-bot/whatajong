@@ -58,10 +58,6 @@ function authorize(req, res, next) {
   }
 }
 
-function isOwner(req) {
-  return req.user._id.toString() === req.param('room_id');
-}
-
 everyauth.everymodule.findUserById(function (_id, callback) {
   db.users.findOne({_id: require('mongojs').ObjectId(_id)}, callback);
 });
@@ -115,58 +111,72 @@ asereje.config({
 http.get('/', function (req, res, next) {
   var query;
 
-  if (req.user && req.session.redirect) { // logged + redirect
+  // logged + redirect
+  if (req.user && req.session.redirect) {
     res.redirect(req.session.redirect);
     delete req.session.redirect;
-  } else if (req.user) {                  // just logged
-    res.redirect('/game/' + req.user._id);
+
+  // just logged
+  } else if (req.user) {
+    db.rooms.find({}, function (error, rooms) {
+      if (error) return next(error);
+
+      res.render('welcome', {
+        rooms: rooms
+      , error: req.param('error') || ''
+      , connect_error: req.param('connect_error') || ''
+      , css: asereje.css()
+      , js: asereje.js(['welcome'])
+      });
+    });
+
+  // Home
   } else {
     res.render('index', {
-      room: null
-    , css: asereje.css()
-    , js: asereje.js()
+      css: asereje.css()
+    , js: []
     });
   }
 });
 
-http.get('/game/:room_id', authorize, function (req, res, next) {
-  var query = {host_id: req.param('room_id')}
-    , js = ['tile', 'client', 'mouse', 'confirm']
-    , room;
+http.post('/room', authorize, function (req, res, next) {
+  var name = req.param('room').name;
 
-  function renderRoom(room) {
-    res.render('room', {
-      room: room
-    , user: req.user
-    , css: asereje.css()
-    , js: asereje.js(js)
+  if (name && name.length) {
+    // foo
+    db.rooms.insert({name: name, host_id: req.user._id}, function (error, rooms) {
+      if (error) return next(error);
+      require('./game').spawn({
+        io: io
+      , room_id: rooms[0]._id
+      , host_id: req.user._id
+      , db: db
+      });
+      res.redirect('/game/' + rooms[0]._id);
     });
+  } else {
+    res.redirect('/?error=Room name is mandatory');
   }
+});
+
+http.get('/game/:room_id', authorize, function (req, res, next) {
+  var query = {_id: require('mongojs').ObjectId(req.param('room_id'))}
+    , js = ['tile', 'client', 'mouse', 'confirm']
+    , options;
 
   db.rooms.findOne(query, function (error, room) {
     if (error) return next(error);
+
+    var options = { room: room
+                  , user: req.user
+                  , css: asereje.css()
+                  , js: asereje.js(js)
+                  };
+
     if (room) {
-      renderRoom(room);
+      res.render('room', options);
     } else {
-      if (isOwner(req)) {
-        db.rooms.insert(query, function (error, rooms) {
-          if (error) return next(error);
-          require('./game').spawn({
-            io: io
-          , room_id: rooms[0]._id.toString()
-          , host_id: req.param('room_id')
-          , db: db
-          });
-          renderRoom(rooms[0]);
-        });
-      } else {
-        res.render('inexistant_room', {
-          room: room
-        , user: req.user
-        , css: asereje.css()
-        , js: asereje.js(js)
-        });
-      }
+      res.render('inexistant_room', options);
     }
   });
 });
@@ -190,4 +200,8 @@ io.configure('production', function () {
 });
 
 db = require('mongojs').connect(conf.mongodb.connection_url, ['users', 'rooms']);
-http.listen(conf.port || 3000);
+db.rooms.remove({}, function (error) {
+  if (error) throw(error);
+
+  http.listen(conf.port || 3000);
+});
