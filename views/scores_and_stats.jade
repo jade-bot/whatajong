@@ -43,4 +43,4 @@ br
           span.puntuation
             = stat.score.puntuation
             span.time= humanize_time(stat.score.time)
-        div.when= moment(stat.updated_at).fromNow()
+        div.when= moment(stat.score.updated_at).fromNow()
