@@ -155,7 +155,7 @@ module.exports.spawn = function (options) {
           if (error) throw Error('Error getting the id');
           data.id = id;
           if (STATE.players[id]) {
-            data.color = STATE.players[id].rgba_color;
+            data.color = STATE.players[id].color;
           } else {
             data.color = '#fff';
           }

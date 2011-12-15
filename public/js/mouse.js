@@ -15,9 +15,7 @@ $(function () {
 
   function move(data) {
     if (!$('#mouse_' + data.id).length) {
-      $('#canvas').append('<span class="mouse" id="mouse_' + data.id
-                        + '" style="background-color: rgba(' + data.color.join(',') + ', 0.4);">'
-                        + data.name.split(' ')[0] + '</span>');
+      $('#canvas').append('<span class="mouse color_' + data.color.slice(1) + '" id="mouse_' + data.id + '"></span>');
     }
 
     $('#mouse_' + data.id).animate({
@@ -31,7 +29,6 @@ $(function () {
       socket.emit('mouse.move', {
         x: e.pageX - $('#canvas').offset().left
       , y: e.pageY - $('#canvas').offset().top
-      , name: $('#user_name').val()
       });
     }, 40)
   );
