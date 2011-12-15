@@ -8,7 +8,6 @@ h2 Stats
   table.stats(cellpadding='0', cellspacing='0')
     thead
       tr
-        th Avg Faults
         th Avg Time
         th % Finished
         th Avg Puntuation
@@ -16,7 +15,6 @@ h2 Stats
 
       tbody
         tr
-          td= Math.round(my_stats.total_faults / my_stats.total_games)
           td= humanize_time(Math.round(my_stats.total_time / my_stats.total_games))
           td= Math.round(my_stats.finished_games * 100 / my_stats.total_games, 2)
           td= Math.round(my_stats.total_puntuation / my_stats.total_games)
