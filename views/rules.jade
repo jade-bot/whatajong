@@ -1,4 +1,6 @@
-a#logout.btn.blue(href='/logout') Logout
+- if (everyauth.loggedIn)
+  a#logout.btn.blue(href='/logout') Logout
+
 h2 How to play:
 
 .rule
