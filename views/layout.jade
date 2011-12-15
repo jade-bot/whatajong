@@ -19,6 +19,10 @@ html
     #container.paused
       h1
         a(href= '/') FUCKMAHJONG
+
+      - if (everyauth.loggedIn)
+        a.btn.scores(href= '/scores') view stats and scores
+
       != body
 
     script

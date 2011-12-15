@@ -14,8 +14,8 @@ $(function () {
     , CANVAS_WIDTH = (ROWS * TILE_WIDTH) + (2 * SIDE_SIZE)
     , CANVAS_HEIGHT = (COLUMNS * TILE_HEIGHT) + (2 * SIDE_SIZE)
     , paper = Raphael($('#canvas').get(0), CANVAS_WIDTH, CANVAS_HEIGHT)
-    , room_id = $('#room_id').val()
     , room_host_id = $('#room_host_id').val()
+    , namespace_id = $('#namespace_id').val()
     , user_data = { _id: $('#user_id').val()
                   , name: $('#user_name').val()
                   , img: $('#user_picture').val()
@@ -23,7 +23,7 @@ $(function () {
     , emit
     , svgs = [], images = [], shapes = [], shadows = [];
 
-  socket = io.connect('/' + room_id);
+  socket = io.connect('/' + namespace_id);
 
   emit = _.bind(socket.emit, socket);
   //if (document.location.hostname === 'localhost') {
@@ -51,7 +51,7 @@ $(function () {
       .append('<span class="points" style="background: rgba('
               + user.rgba_color.join(',') + ',0.5);">' + user.num_pairs + '</span>');
 
-    if (user.id === room_host_id) {
+    if (room_host_id && user.id === room_host_id) {
       $('.player_' + user.id).append('<span class="host">host</span>');
     }
   }
@@ -148,10 +148,10 @@ $(function () {
    * @param {Object} players
    * @return {Array}
    */
-  function setRanking(id, players) {
-    var top = _.max(_.pluck(players, 'num_pairs'))
+  function setRanking(id, data) {
+    var top = _.max(_.pluck(data.players, 'num_pairs'))
       , $ranking = $(id).find('.ranking')
-      , sorted = _.sortBy(players, function (player) {
+      , sorted = _.sortBy(data.players, function (player) {
           return -player.num_pairs;
         });
 
@@ -159,8 +159,11 @@ $(function () {
 
     _.each(sorted, function (player) {
       $ranking.append($('.sidebar .player_' + player.id).clone());
-      if (player.num_pairs === top) {
+
+      if (room_host_id && player.num_pairs === top) {
         $ranking.find('.player_' + player.id).append('<img class="medal" src="/images/medal.png" />');
+      } else {
+        $ranking.before('<div class="total_score">' + data.points + ' points</div>');
       }
     });
   }
@@ -529,15 +532,15 @@ $(function () {
       $('#time').text(_formatTime(data.time));
     });
 
-    socket.on('game.win', function (players) {
-      setRanking('#win', players);
+    socket.on('game.win', function (data) {
+      setRanking('#win', data);
       APP.Confirm.open($('#win'), function () {
         emit('restart');
       });
     });
 
-    socket.on('game.loose', function (players) {
-      setRanking('#loose', players);
+    socket.on('game.loose', function (data) {
+      setRanking('#loose', data);
       APP.Confirm.open($('#loose'), function () {
         emit('restart');
       });

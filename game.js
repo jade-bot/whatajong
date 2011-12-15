@@ -17,39 +17,50 @@ module.exports.spawn = function (options) {
   }
 
   var STATE = _defaultState()
-    , gamesManager = require('./lib/games')(options, STATE)
-    , Tile, room;
+    , gamesManager = require('./lib/gamesManager')(options, STATE)
+    , socket_namespace = (options.single
+                          ? options.user._id
+                          : options.room_id
+                         ).toString()
+    , room = options.io.of('/' + socket_namespace)
+    , Tile;
 
-  room = options.io.of('/' + options.room_id.toString()).on('connection', function onSpawn(socket) {
+  function _instantiateTiles(tiles) {
+    var map = STATE.current_map
+      , i = 1
+      , same_as_prev, same_as_above, z, y, x;
 
-    function _instantiateTiles(tiles) {
-      var map = STATE.current_map
-        , i = 1
-        , same_as_prev, same_as_above, z, y, x;
-
-      for (z = 0; z < map.length; z++) {
-        for (y = 0; y < map[z].length; y++) {
-          for (x = map[z][y].length - 1; x > 0 ; x--) {
-            same_as_prev = map[z][y][x + 1] ? map[z][y][x + 1] === map[z][y][x] : false;
-            same_as_above = map[z][y - 1] ? map[z][y - 1][x] === map[z][y][x] : false;
-            if (map[z][y][x] && !same_as_prev && !same_as_above) {
-              tiles[i] = {cardface: tiles[i], i: map[z][y][x], x: x, y: y, z: z};
-              i++;
-            }
+    for (z = 0; z < map.length; z++) {
+      for (y = 0; y < map[z].length; y++) {
+        for (x = map[z][y].length - 1; x > 0 ; x--) {
+          same_as_prev = map[z][y][x + 1] ? map[z][y][x + 1] === map[z][y][x] : false;
+          same_as_above = map[z][y - 1] ? map[z][y - 1][x] === map[z][y][x] : false;
+          if (map[z][y][x] && !same_as_prev && !same_as_above) {
+            tiles[i] = {cardface: tiles[i], i: map[z][y][x], x: x, y: y, z: z};
+            i++;
           }
         }
       }
     }
+  }
 
-    function _cleanState() {
-      clearInterval(STATE.interval);
-      STATE = null;
-    }
+  function _cleanState() {
+    clearInterval(STATE.interval);
+    STATE = _defaultState();
+    room.removeAllListeners();
+  }
+
+  // be sure than we only have one listener
+  room.removeAllListeners();
+
+  room.on('connection', function onSpawn(socket) {
+
+    var room_socket = options.single ? socket : room;
 
     function _eachSecond() {
       STATE.time++;
       STATE.points = STATE.points <= 0 ? 0 : STATE.points - Tile.POINTS_PER_SECOND;
-      room.emit('tick', {time: STATE.time, points: STATE.points});
+      room_socket.emit('tick', {time: STATE.time, points: STATE.points});
     }
 
     // for each game
@@ -95,7 +106,7 @@ module.exports.spawn = function (options) {
         STATE.points += points;
         STATE.players[player_id].num_pairs++;
 
-        room.emit('tiles.deleted', {
+        room_socket.emit('tiles.deleted', {
           tile: tile
         , selected_tile: selected_tile
         , player_id: player_id
@@ -110,19 +121,21 @@ module.exports.spawn = function (options) {
 
           // loose
           if (!STATE.remaining_tiles) {
-            room.emit('game.win', STATE.players);
+            room_socket.emit('game.win', {players: STATE.players, points: STATE.points});
           // win
           } else {
-            room.emit('game.loose', STATE.players);
+            room_socket.emit('game.loose', {players: STATE.players, points: STATE.points});
           }
 
-          gamesManager.saveGame(
-            null
-          , { finished: !STATE.remaining_tiles
-            , remaining_tiles: STATE.remaining_tiles
-            , points: STATE.points
-            , time: STATE.time
-          });
+          if (options.single) {
+            gamesManager.updateScore(
+              options.user
+            , STATE.score
+            , STATE.points
+            , STATE.time
+            , !STATE.remaining_tiles
+            );
+          }
         }
       }
       , function noMatching(tile, selected_tile) {
@@ -136,18 +149,20 @@ module.exports.spawn = function (options) {
     });
 
     // mouse.js
-    socket.on('mouse.move', function (data) {
-      socket.get('id', function (error, id) {
-        if (error) throw Error('Error getting the id');
-        data.id = id;
-        if (STATE.players[id]) {
-          data.color = STATE.players[id].rgba_color;
-        } else {
-          data.color = '#fff';
-        }
-        socket.broadcast.emit('mouse.move', data);
+    if (!options.single) {
+      socket.on('mouse.move', function (data) {
+        socket.get('id', function (error, id) {
+          if (error) throw Error('Error getting the id');
+          data.id = id;
+          if (STATE.players[id]) {
+            data.color = STATE.players[id].rgba_color;
+          } else {
+            data.color = '#fff';
+          }
+          socket.broadcast.emit('mouse.move', data);
+        });
       });
-    });
+    }
 
     // player connection
     socket.on('disconnect', function () {
@@ -156,24 +171,24 @@ module.exports.spawn = function (options) {
 
         socket.broadcast.emit('players.delete', {id: id});
 
-        // save the unfinished game
-        if (STATE.started && !STATE.finished) {
-          gamesManager.saveGame(
-            [id]
-          , { finished: false
-            , remaining_tiles: STATE.remaining_tiles
-            , points: 0
-            , time: STATE.time
-          });
-        }
-
         delete STATE.players[id];
 
-        if (!Object.keys(STATE.players).length) {
-          options.db.rooms.remove({_id: options.room_id});
+        if (options.single) {
+          gamesManager.updateScore(
+            options.user
+          , STATE.score
+          , STATE.points
+          , STATE.time
+          , !STATE.remaining_tiles
+          );
           _cleanState();
         } else {
-          options.db.rooms.update({_id: options.room_id}, {'$pull': {players: {id: id}}});
+          if (!Object.keys(STATE.players).length) {
+            options.db.rooms.remove({_id: options.room_id});
+            _cleanState();
+          } else {
+            options.db.rooms.update({_id: options.room_id}, {'$pull': {players: {id: id}}});
+          }
         }
       });
     });
@@ -199,18 +214,29 @@ module.exports.spawn = function (options) {
         });
         STATE.players[data.id] = data;
 
-        options.db.rooms.update({_id: options.room_id}, {'$addToSet': {players: data}}, function (error) {
-          if (error) return cb(error);
+        if (options.single) {
+          gamesManager.createScore(options.user, function (error, score) {
+            if (error) return cb(error);
 
-          socket.broadcast.emit('players.add', STATE.players[data.id]);
-          cb(null, _.sortBy(STATE.players, function (player) {
-            return (player.id === options.host_id.toString()) ? 0 : player.joined_at;
-          }));
-
-          if (STATE.started) {
+            STATE.score = score;
+            cb(null, STATE.players);
+            _initState();
             socket.emit('init', STATE);
-          }
-        });
+          });
+        } else {
+          options.db.rooms.update({_id: options.room_id}, {'$addToSet': {players: data}}, function (error) {
+            if (error) return cb(error);
+
+            socket.broadcast.emit('players.add', STATE.players[data.id]);
+            cb(null, _.sortBy(STATE.players, function (player) {
+              return (player.id === options.host_id.toString()) ? 0 : player.joined_at;
+            }));
+
+            if (STATE.started) {
+              socket.emit('init', STATE);
+            }
+          });
+        }
       });
     });
 
@@ -219,16 +245,27 @@ module.exports.spawn = function (options) {
       if (!STATE.started) {
         _initState();
       }
-      room.emit('init', STATE);
+      room_socket.emit('init', STATE);
     });
 
     socket.on('restart', function (data) {
       var players = STATE.players;
       STATE = _defaultState();
       STATE.players = players;
-      gamesManager = require('./lib/games')(options, STATE);
-      _initState();
-      room.emit('init', STATE);
+      gamesManager = require('./lib/gamesManager')(options, STATE);
+
+      if (options.single) {
+        gamesManager.createScore(options.user, function (error, score) {
+          if (error) return cb(error);
+
+          STATE.score = score;
+          _initState();
+          socket.emit('init', STATE);
+        });
+      } else {
+        _initState();
+        room_socket.emit('init', STATE);
+      }
     });
   });
 };

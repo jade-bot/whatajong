@@ -4,7 +4,9 @@ var express = require('express')
   , asereje = require('asereje')
   , db, io, http;
 
-function parseUser(network, data) {
+GLOBAL._ = require('underscore');
+
+function parseUser(network, data, network_id) {
   var user = {};
 
   switch (network) {
@@ -19,25 +21,38 @@ function parseUser(network, data) {
   }
 
   user.network = network;
+  user.network_id = network_id;
   return user;
 }
 
 function findOrCreateUser(network) {
-  return function (session, access_token, access_token_extra, metadata) {
+  return function (session, access_token, token_extra, metadata) {
     var promise = this.Promise();
 
-    db.users.findOne({access_token: access_token, network: network}, function (error, user) {
+    db.users.findOne({network_id: metadata.id, network: network}, function (error, user) {
       function onUser(error, user) {
         if (error) return console.log(error);
-        if (Array.isArray(user)) {
-          user = user[0];
-        }
         user.id = user._id;
         promise.fulfill(user);
       }
 
       if (!user) {
-        db.users.insert(parseUser(network, metadata), onUser);
+        db.users.insert(parseUser(network, metadata, metadata.id), function (error, user) {
+          if (error) return console.log(error);
+          user = user[0];
+          db.statistics.insert({
+            user: user
+          , max_puntuation: 0
+          , total_games: 0
+          , total_puntuation: 0
+          , total_time: 0
+          , finished_games: 0
+          , updated_at: null
+          }, function (error, stat) {
+            if (error) return console.log(error);
+            onUser(null, user);
+          });
+        });
       } else {
         onUser(null, user);
       }
@@ -96,6 +111,19 @@ http.configure(function () {
 
 http.helpers({
   assets_host: conf.assets_host || ''
+, humanize_time: function (time) {
+    var hours = Math.floor(time / 3600)
+      , minutes = Math.floor(time / 60)
+      , seconds = time % 60;
+
+    function left_zero(num) {
+      return num < 10 ? '0' + num : num;
+    }
+
+    return hours !== 0
+            ? left_zero(hours) + ':' + left_zero(minutes) + ':' + left_zero(seconds)
+            : left_zero(minutes) + ':' + left_zero(seconds);
+  }
 });
 
 asereje.config({
@@ -159,10 +187,107 @@ http.post('/room', authorize, function (req, res, next) {
   }
 });
 
+http.get('/game/single', authorize, function (req, res, next) {
+  var js = ['tile', 'client', 'mouse', 'confirm']
+    , options = { user: req.user
+                , room: null
+                , css: asereje.css()
+                , js: asereje.js(js)
+                };
+
+  require('./game').spawn({
+    io: io
+  , single: true
+  , user: req.user
+  , db: db
+  });
+
+  res.render('room', options);
+});
+
+http.get('/scores', authorize, function (req, res, next) {
+  var funk = require('funk')('parallel');
+
+  function onStats(error, stats) {
+    if (error) return next(error);
+
+    var my_stats = _.detect(stats, function (stat) {
+          return !!stat.user;
+        })
+      , global_stats = _.detect(stats, function (stat) {
+          return !stat.user;
+        })
+      , max_puntuation = my_stats.max_puntuation
+      , base_query = {'$ne': {'user._id': my_stats.user._id}, user: {'$exists': true}, score: {'$exists': true}};
+
+    funk.set('my_stats', my_stats);
+    funk.set('global_stats', global_stats);
+
+    function onCount(error, num_better_scores) {
+      funk.set('num_better_scores', num_better_scores);
+
+      if (num_better_scores >= 10) {
+        // between 10 and 15 join top ten with better scores
+        var index = num_better_scores < 15 ? num_better_scores - 11 : 4;
+        funk.set('index', index);
+
+        db.statistics.find(
+          _.extend({'$lte': {max_puntuation: max_puntuation}}, base_query)
+        , {sort: {max_puntuation: -1}, limit: 5}
+        , funk.result('worse_scores')
+        );
+
+        if (index >= 0) {
+          db.statistics.find(
+            _.extend({'$gt': {max_puntuation: max_puntuation}}, base_query)
+          , {sort: {max_puntuation: 1}, limit: 5}
+          , funk.result('better_scores')
+          );
+        }
+      }
+    }
+
+    db.statistics.count(
+      _.extend({'$gt': {max_puntuation: max_puntuation}}, base_query)
+      , funk.add(onCount)
+    );
+  }
+
+  db.statistics.find({'$or': [{'user._id': req.user._id}, {user: {'$exists': false}}]}, funk.add(onStats));
+  db.statistics.find(
+    {user: {'$exists': true}, score: {'$exists': true}}
+  , {sort: {max_puntuation: -1}, limit: 10}
+  , funk.result('top_ten_scores')
+  );
+
+  funk.run(function () {
+    var stats = [];
+
+    if (this.better_scores) {
+      stats = _.union(this.top_ten_scores, this.better_scores.slice(0, this.index).reverse()
+                      , [this.my_stats], this.worse_scores);
+    } else if (this.worse_scores) {
+      stats = _.union(this.top_ten_scores, [this.my_stats], this.worse_scores);
+    } else {
+      stats = this.top_ten_scores;
+    }
+
+    res.render('scores_and_stats', {
+      stats: stats
+    , my_stats: this.my_stats
+    , global_stats: this.global_stats
+    , user: req.user
+    , moment: require('moment')
+    , css: asereje.css()
+    , js: asereje.js()
+    });
+
+  }, next);
+});
+
 http.get('/game/:room_id', authorize, function (req, res, next) {
   var query = {_id: require('mongojs').ObjectId(req.param('room_id'))}
-    , js = ['tile', 'client', 'mouse', 'confirm']
-    , options;
+    , js = ['tile', 'client', 'mouse', 'confirm'];
 
   db.rooms.findOne(query, function (error, room) {
     if (error) return next(error);
@@ -199,9 +324,21 @@ io.configure('production', function () {
   ]);
 });
 
-db = require('mongojs').connect(conf.mongodb.connection_url, ['users', 'rooms']);
-db.rooms.remove({}, function (error) {
-  if (error) throw(error);
+db = require('mongojs').connect(conf.mongodb.connection_url, ['users', 'rooms', 'scores', 'statistics']);
 
-  http.listen(conf.port || 3000);
+db.statistics.findOne({user: {'$exists': false}}, function (error, stat) {
+  if (!stat) {
+    db.statistics.insert({
+      max_puntuation: 0
+    , total_games: 0
+    , total_puntuation: 0
+    , total_time: 0
+    , finished_games: 0
+    , updated_at: null
+    });
+  }
+
+  db.rooms.remove({}, function (error) {
+    http.listen(conf.port || 3000);
+  });
 });

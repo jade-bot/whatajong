@@ -4,12 +4,14 @@
   "private": true,
   "dependencies": {
     "node-static": "0.5.9",
+    "funk": "1.5.1",
     "socket.io": "0.8.7",
     "underscore": "1.1.7",
     "express": "2.5.1",
     "everyauth": "0.2.27",
     "jade": "0.19.0",
     "mongojs": "0.2.6",
-    "asereje": "0.1.0"
+    "asereje": "0.1.0",
+    "moment": "1.2.0"
   }
 }

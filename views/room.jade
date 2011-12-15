@@ -1,6 +1,8 @@
 // info
-input#room_id(type='hidden', value= room._id)
-input#room_host_id(type='hidden', value= room.host_id)
+- if (room)
+  input#room_host_id(type='hidden', value= room.host_id)
+
+input#namespace_id(type='hidden', value= room ? room._id : user._id)
 input#user_id(type='hidden', value= user._id)
 input#user_name(type='hidden', value= user.name)
 input#user_picture(type= 'hidden', value= user.picture)
@@ -26,21 +28,23 @@ input#user_picture(type= 'hidden', value= user.picture)
 // list of connected users
 ul.players.sidebar
   li.player.unknown ?
-  li.player.unknown ?
-  li.player.unknown ?
-  li.player.unknown ?
-  li.player.unknown ?
-  li.player.unknown ?
+  - if (room)
+    li.player.unknown ?
+    li.player.unknown ?
+    li.player.unknown ?
+    li.player.unknown ?
+    li.player.unknown ?
 
-#paused
-  a#logout.btn.blue(href='/logout') Logout
-  p
-    | You can invite people to this game by sharing this link:
-    textarea URL
-  - if (user._id.toString() === room.host_id.toString())
-    a.start.btn(href= '#') Start game
-  - else
-    strong Waiting for the host to start the game...
+- if (room)
+  #paused
+    a#logout.btn.blue(href='/logout') Logout
+    p
+      | You can invite people to this game by sharing this link:
+      textarea URL
+    - if (user._id.toString() === room.host_id.toString())
+      a.start.btn(href= '#') Start game
+    - else
+      strong Waiting for the host to start the game...
 
 #playing
   #score
