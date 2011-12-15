@@ -418,8 +418,13 @@ $(function () {
         , function onDelete(tile, selected_tile, points) {
             paintAsSelected(tile, STATE.players[user_data._id].color);
             _.each([tile, selected_tile], function (t) {
-              svgs[t.i].animate({opacity: 0}, 200, '>');
+              svgs[t.i].animate({opacity: 0}, room_host_id ? 200 : 50, '>');
             });
+
+            if (!room_host_id) {
+              document.getElementById('s_gling').play();
+            }
+
             emit('tile.clicked', {tile: tile, player_id: user_data._id}, function (tile, selected_tile) {
               STATE.tiles[selected_tile.i].is_deleted = false;
               _.each(_.filter([tile, selected_tile], Boolean), function (t) {
@@ -516,7 +521,10 @@ $(function () {
       _numPairsChanged(data.num_pairs);
       $('.sidebar .player_' + data.player_id + ' .points').html(data.player_num_pairs);
 
-      document.getElementById('s_gling').play();
+      if (room_host_id) {
+        document.getElementById('s_gling').play();
+      }
+
       if (data.selected_tile.i !== selected_tile.i || data.tile.i !== selected_tile.i) {
         STATE.players[user_data._id].selected_tile = null;
       }
