@@ -173,7 +173,7 @@ module.exports.spawn = function (options) {
 
         delete STATE.players[id];
 
-        if (options.single) {
+        if (options.single && !STATE.finished) {
           gamesManager.updateScore(
             options.user
           , STATE.score
