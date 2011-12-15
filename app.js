@@ -167,6 +167,13 @@ http.get('/', function (req, res, next) {
   }
 });
 
+http.get('/rules', function (req, res, next) {
+  res.render('rules', {
+    css: asereje.css()
+  , js: asereje.js()
+  });
+});
+
 http.post('/room', authorize, function (req, res, next) {
   var name = req.param('room').name;
 

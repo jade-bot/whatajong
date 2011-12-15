@@ -2,7 +2,7 @@ body {
   margin: 0;
   padding: 0;
   background: url(/images/background.jpg) repeat top left;
-  color: rgba(0, 0, 0, 0.4);
+  color: rgba(0, 0, 0, 0.5);
   font-family: Arial, sans-serif;
 }
 
@@ -392,10 +392,18 @@ ul.ranking img.medal {
   text-align: center;
 }
 
-.btn.scores {
+.btn.rules, .btn.scores {
   position: absolute;
   top: 22px;
   left: 460px;
+}
+
+.btn.scores {
+  left: 460px;
+}
+
+.btn.rules {
+  left: 635px;
 }
 
 .room, .score {
@@ -557,4 +565,15 @@ input.text {
 
 .error p {
   margin-top: 0;
+}
+
+.rule {
+  background: rgba(255, 255, 200, 0.1);
+  padding: 10px 20px;
+  margin-bottom: 20px;
+     -moz-border-radius: 2px;
+  -webkit-border-radius: 2px;
+          border-radius: 2px;
+  color: #420;
+  text-shadow: 0px 1px 0px rgba(255, 255, 255, 0.1);
 }

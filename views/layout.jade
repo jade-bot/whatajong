@@ -20,8 +20,9 @@ html
       h1
         a(href= '/') FUCKMAHJONG
 
+      a.btn.rules.blue(href= '/rules') help
       - if (everyauth.loggedIn)
-        a.btn.scores(href= '/scores') view stats and scores
+        a.btn.scores.blue(href= '/scores') view stats and scores
 
       != body
 
