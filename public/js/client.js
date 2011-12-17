@@ -162,7 +162,7 @@ $(function () {
 
       if (room_host_id && player.num_pairs === top) {
         $ranking.find('.player_' + player.id).append('<img class="medal" src="/images/medal.png" />');
-      } else if (room_host_id) {
+      } else if (!room_host_id) {
         $(id).find('.total_score').html(data.points + ' points').show();
       }
     });
