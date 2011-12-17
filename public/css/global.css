@@ -390,6 +390,7 @@ ul.ranking img.medal {
   font-family: 'Bowlby One', sans-serif;
   font-weight: normal;
   text-align: center;
+  display: none;
 }
 
 .btn.rules, .btn.scores {
