@@ -134,7 +134,7 @@
         if (player.selected_tile === null) {
           player.selected_tile = tile;
           tile.selected = true;
-          tile.player_id = player_id;
+          tile.player_ids.push(player_id);
 
           firstSelection(tile);
 
@@ -143,25 +143,24 @@
                 && !(player.selected_tile.is_deleted || tile.is_deleted)
                 && player.selected_tile.i !== tile.i) {
 
-          if (tile.player_id && tile.player_id !== player_id) {
-            STATE.players[tile.player_id].selected_tile = null;
-          }
-
           TILE['delete'](tile);
-          TILE['delete'](STATE.tiles[STATE.players[player_id].selected_tile.i]);
+          TILE['delete'](STATE.tiles[player.selected_tile.i]);
 
           tile.selected = true;
-          tile.player_id = player_id;
           secondSelection(tile, player.selected_tile, points);
-          player.selected_tile = null;
+          _.each(tile.player_ids.concat(player.selected_tile.player_ids), function (player_id) {
+            STATE.players[player_id].selected_tile = null;
+          });
         // don't match or the same tile
         } else {
           if (player.selected_tile.i !== tile.i) {
-            STATE.tiles[player.selected_tile.i].selected = false;
-            delete STATE.tiles[player.selected_tile.i].player_id;
+            delete STATE.tiles[player.selected_tile.i].selected;
           }
-          STATE.tiles[tile.i].selected = false;
-          delete STATE.tiles[tile.i].player_id;
+          STATE.tiles[player.selected_tile.i].player_ids = _.without(
+            STATE.tiles[player.selected_tile.i].player_ids
+          , player_id
+          );
+          delete STATE.tiles[tile.i].selected;
           notMatching(tile, player.selected_tile);
           player.selected_tile = null;
         }

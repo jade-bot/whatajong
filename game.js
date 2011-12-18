@@ -36,7 +36,14 @@ module.exports.spawn = function (options) {
           same_as_prev = map[z][y][x + 1] ? map[z][y][x + 1] === map[z][y][x] : false;
           same_as_above = map[z][y - 1] ? map[z][y - 1][x] === map[z][y][x] : false;
           if (map[z][y][x] && !same_as_prev && !same_as_above) {
-            tiles[i] = {cardface: tiles[i], i: map[z][y][x], x: x, y: y, z: z};
+            tiles[i] = {
+              cardface: tiles[i]
+            , player_ids: []
+            , i: map[z][y][x]
+            , x: x
+            , y: y
+            , z: z
+            };
             i++;
           }
         }
