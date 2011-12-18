@@ -1,11 +1,13 @@
-(typeof exports === 'undefined' ? this : exports).Tile = function (current_map) {
+(typeof exports === 'undefined' ? this : exports).Tile = function (STATE) {
   var TILE = {};
 
   TILE.POINTS_PER_SECOND = 2;
   TILE.TOTAL_TILES = 144;
 
   function _getPosition(z, y, x) {
-    return ((current_map[z] || {})[y] || {})[x];
+    var i = ((STATE.current_map[z] || {})[y] || {})[x];
+
+    return !i || STATE.tiles[i].is_deleted ? null : i;
   }
 
   TILE.getTopTiles = function getTopTiles(tile) {
@@ -62,10 +64,6 @@
 
   TILE['delete'] = function (tile) {
     tile.is_deleted = true;
-    current_map[tile.z][tile.y][tile.x] = null;
-    current_map[tile.z][tile.y][tile.x - 1] = null;
-    current_map[tile.z][tile.y + 1][tile.x] = null;
-    current_map[tile.z][tile.y + 1][tile.x - 1] = null;
   };
 
   TILE.setPosition = function (tile, x, y, z) {
@@ -121,7 +119,7 @@
     return num_pairs;
   };
 
-  TILE.onClicked = function (STATE, firstSelection, secondSelection, notMatching) {
+  TILE.onClicked = function (firstSelection, secondSelection, notMatching) {
     return function (tile, player_id) {
       var points
         , player = STATE.players[player_id];

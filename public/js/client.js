@@ -20,8 +20,7 @@ $(function () {
                   , name: $('#user_name').val()
                   , img: $('#user_picture').val()
                   }
-    , emit
-    , svgs = [], images = [], shapes = [], shadows = [];
+    , emit;
 
   socket = io.connect('/' + namespace_id);
 
@@ -174,7 +173,8 @@ $(function () {
    * @param {Object} STATE
    */
   function initGame(STATE) {
-    var TILE = Tile(STATE.current_map);
+    var TILE = Tile(STATE)
+      , svgs = [], images = [], shapes = [], shadows = [];
 
     function setShadows(tile) {
       var shadow = shadows[tile.i]
@@ -280,7 +280,7 @@ $(function () {
 
     function paintAsSelected(tile, color) {
       if (!shapes[tile.i].removed) {
-        shapes[tile.i].attr({fill: color || STATE.players[tile.player_id].color, 'fill-opacity': 0.5});
+        shapes[tile.i].attr({fill: color || STATE.players[tile.player_ids[0]].color, 'fill-opacity': 0.5});
       }
     }
 
@@ -331,10 +331,8 @@ $(function () {
         });
       }
 
-      svgs[tile.i].animate({opacity: 0}, 200, '>', function () {
-        shadowing(tile);
-        svgs[tile.i].remove();
-      });
+      shadowing(tile);
+      svgs[tile.i].remove();
       makeBetterVisibility(tile, false);
     }
 
@@ -342,8 +340,7 @@ $(function () {
       var coords = _getRealCoordinates(tile)
         , x = coords.x
         , y = coords.y
-        , z = tile.z
-        , shadow_attr = {stroke: '', fill: '#000', 'fill-opacity': 0.1}
+        , shadow_attr = {stroke: '', fill: 'rgba(0, 0, 0, 0.1)'}
         , set = paper.set()
         , image_loc = _getImageLocation(tile.cardface)
         , left_side, bottom_side, body, shape, shadow_right, shadow_up
@@ -382,9 +379,9 @@ $(function () {
 
       left_side.attr({fill: '#FFBB89', stroke: '', cursor: 'pointer'});
       bottom_side.attr({fill: '#FF9966', stroke: '', cursor: 'pointer'});
-      body.attr({fill: '#FEE1A9', stroke: '', cursor: 'pointer'});
+      body.attr({fill: '#FEE1A9', stroke: ''});
       image.attr({'clip-rect': [x + SIDE_SIZE, y, TILE_WIDTH, TILE_HEIGHT], cursor: 'pointer'});
-      shape.attr({stroke: '#520', 'stroke-width': 1, cursor: 'pointer', fill: '#fff', 'fill-opacity': 0});
+      shape.attr({stroke: '#520', cursor: 'pointer', fill: 'rgba(255, 255, 255, 0)'});
 
       $.each([ shadow_up, shadow_right, shadow_up_climb, shadow_right_climb
              , shadow_up_both, shadow_right_both], function (i, el) {
@@ -409,35 +406,20 @@ $(function () {
       };
 
       shape.click(function (event) {
-        TILE.onClicked(STATE
-        , function firstSelection(tile) {
+        TILE.onClicked(
+          function firstSelection(tile) {
             document.getElementById('s_click').play();
             paintAsSelected(tile, STATE.players[user_data._id].color);
             emit('tile.clicked', {tile: tile, player_id: user_data._id});
           }
-        , function onDelete(tile, selected_tile, points) {
-            paintAsSelected(tile, STATE.players[user_data._id].color);
-            _.each([tile, selected_tile], function (t) {
-              svgs[t.i].animate({opacity: 0}, room_host_id ? 200 : 50, '>');
-            });
-
-            if (!room_host_id) {
-              document.getElementById('s_gling').play();
-            }
-
-            emit('tile.clicked', {tile: tile, player_id: user_data._id}, function (tile, selected_tile) {
-              STATE.tiles[selected_tile.i].is_deleted = false;
-              _.each(_.filter([tile, selected_tile], Boolean), function (t) {
-                if (!t.is_deleted) {
-                  svgs[t.i].attr({opacity: 1});
-                  if (t.selected) {
-                    paintAsSelected(t, STATE.players[t.player_id].color);
-                  } else {
-                    paintAsUnselected(t);
-                  }
-                }
+        , function onMatching(tile, selected_tile, points) {
+            document.getElementById('s_gling').play();
+            _.each([tile, selected_tile], function (tile) {
+              svgs[tile.i].animate({opacity: 0}, 100, '>', function () {
+                onDelete(tile);
               });
             });
+            emit('tile.clicked', {tile: tile, player_id: user_data._id});
           }
         , function notMatching(tile, selected_tile) {
             document.getElementById('s_grunt').play();
@@ -452,12 +434,12 @@ $(function () {
       });
 
       shape.hover(function () {
-        if (!STATE.tiles[tile.i].player_id && TILE.isFree(STATE.tiles[tile.i])) {
+        if (!STATE.tiles[tile.i].selected && TILE.isFree(STATE.tiles[tile.i]) && !STATE.tiles[tile.i].is_deleted) {
           this.attr({'fill-opacity': 0.3});
         }
         makeBetterVisibility(STATE.tiles[tile.i], true);
       }, function () {
-        if (!STATE.tiles[tile.i].player_id && !STATE.tiles[tile.i].is_deleted) {
+        if (!STATE.tiles[tile.i].selected && !STATE.tiles[tile.i].is_deleted) {
           this.attr({'fill-opacity': 0});
         }
         makeBetterVisibility(STATE.tiles[tile.i], false);
@@ -465,7 +447,31 @@ $(function () {
     }
 
     /**
-     * Draws the board :)
+     * Draws a single tile
+     *
+     * @param {Object} tiles
+     */
+    function drawTile(tiles, i) {
+      if (tiles[i].is_deleted) {
+        if (svgs[i]) {
+          onDelete(tiles[i]);
+        }
+      } else {
+        if (!svgs[i]) {
+          renderTile(tiles[i]);
+          setShadows(tiles[i]);
+        }
+
+        if (tiles[i].selected) {
+          paintAsSelected(tiles[i]);
+        } else {
+          paintAsUnselected(tiles[i]);
+        }
+      }
+    }
+
+    /**
+     * Draws the board
      *
      * @param {Array} tiles
      */
@@ -474,12 +480,8 @@ $(function () {
 
       paper.clear();
       for (i = 1; i <= tiles.length; i++) {
-        if (tiles[i] && !tiles[i].is_deleted) {
-          renderTile(tiles[i]);
-          setShadows(tiles[i]);
-          if (tiles[i].selected) {
-            paintAsSelected(tiles[i]);
-          }
+        if (tiles[i]) {
+          drawTile(tiles, i);
         }
       }
     }
@@ -497,49 +499,28 @@ $(function () {
     drawBoard(STATE.tiles);
 
     // game events
-    socket.on('tile.selected', function (data) {
-      if (!STATE.tiles[data.tile.i].is_deleted) {
-        document.getElementById('s_click').play();
-        paintAsSelected(data.tile);
-      }
-    });
-
-    socket.on('tiles.unselected', function (data) {
-      var selected_tile = STATE.players[user_data._id].selected_tile || {};
-
-      if (data.selected_tile.i !== selected_tile.i && !STATE.tiles[data.selected_tile.i].is_deleted) {
-        paintAsUnselected(data.selected_tile);
-        delete STATE.tiles[data.selected_tile.i].player_id;
-      }
-    });
-
-    socket.on('tiles.deleted', function (data) {
-      var selected_tile = STATE.players[user_data._id].selected_tile || {};
-
-      STATE.current_map = data.current_map;
-      TILE = Tile(STATE.current_map);
+    socket.removeAllListeners('num_pairs.updated');
+    socket.on('num_pairs.updated', function (data) {
       _numPairsChanged(data.num_pairs);
       $('.sidebar .player_' + data.player_id + ' .points').html(data.player_num_pairs);
+    });
 
-      if (room_host_id) {
-        document.getElementById('s_gling').play();
-      }
-
-      if (data.selected_tile.i !== selected_tile.i || data.tile.i !== selected_tile.i) {
-        STATE.players[user_data._id].selected_tile = null;
-      }
-
-      _.each([data.tile, data.selected_tile], function (tile) {
-        STATE.tiles[tile.i].is_deleted = true;
-        delete STATE.tiles[tile.i].player_id;
-        onDelete(tile);
+    socket.removeAllListeners('tiles.updated');
+    socket.on('tiles.updated', function (tiles) {
+      _.each(tiles, function (tile) {
+        if (tile && !_.isEqual(tile, STATE.tiles[tile.i])) {
+          STATE.tiles[tile.i] = tile;
+          drawTile(STATE.tiles, tile.i);
+        }
       });
     });
 
+    socket.removeAllListeners('tick');
     socket.on('tick', function (data) {
       $('#time').text(_formatTime(data.time));
     });
 
+    socket.removeAllListeners('game.win');
     socket.on('game.win', function (data) {
       setRanking('#win', data);
       APP.Confirm.open($('#win'), function () {
@@ -547,6 +528,7 @@ $(function () {
       });
     });
 
+    socket.removeAllListeners('game.loose');
     socket.on('game.loose', function (data) {
       setRanking('#loose', data);
       APP.Confirm.open($('#loose'), function () {

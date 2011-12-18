@@ -74,7 +74,7 @@ module.exports.spawn = function (options) {
     function _initState() {
       STATE.tiles = _shuffle(_getDeck());
       STATE.current_map = require('./maps/default')();
-      Tile = require('./public/js/tile').Tile(STATE.current_map);
+      Tile = require('./public/js/tile').Tile(STATE);
       _instantiateTiles(STATE.tiles);
       STATE.tiles = _.sortBy(STATE.tiles, function (el) {
         return el && el.i;
@@ -91,20 +91,15 @@ module.exports.spawn = function (options) {
     }
 
     // when a tile is being clicked
-    socket.on('tile.clicked', function (data, cb) {
+    socket.on('tile.clicked', function (data) {
       var tile = data.tile
         , player_id = data.player_id;
 
-      cb = cb || function () {};
-
-      Tile.onClicked(STATE
-      , function (tile) {
-          socket.broadcast.emit('tile.selected', {tile: STATE.tiles[tile.i], player_id: player_id});
-          cb(STATE.tiles[tile.i]);
+      Tile.onClicked(
+        function (tile) {
+          socket.broadcast.emit('tiles.updated', STATE.tiles);
         }
       , function secondSelection(tile, selected_tile, points) {
-        cb(STATE.tiles[tile.i], STATE.tiles[STATE.players[player_id].selected_tile.i]);
-
         STATE.remaining_tiles -= 2;
         STATE.num_pairs = Tile.getNumPairs(STATE.tiles);
         points = (Tile.POINTS_PER_SECOND * 3) + Math.ceil(
@@ -113,14 +108,12 @@ module.exports.spawn = function (options) {
         STATE.points += points;
         STATE.players[player_id].num_pairs++;
 
-        room_socket.emit('tiles.deleted', {
-          tile: tile
-        , selected_tile: selected_tile
-        , player_id: player_id
-        , current_map: STATE.current_map
+        room_socket.emit('num_pairs.updated', {
+          player_id: player_id
         , num_pairs: STATE.num_pairs
         , player_num_pairs: STATE.players[player_id].num_pairs
         });
+        socket.broadcast.emit('tiles.updated', STATE.tiles);
 
         if (!STATE.num_pairs || !STATE.remaining_tiles) {
           STATE.finished = true;
@@ -146,11 +139,7 @@ module.exports.spawn = function (options) {
         }
       }
       , function noMatching(tile, selected_tile) {
-          cb(STATE.tiles[tile.i], STATE.tiles[STATE.players[player_id].selected_tile.i]);
-          socket.broadcast.emit('tiles.unselected', {
-            tile: STATE.tiles[tile.i]
-          , selected_tile: STATE.tiles[selected_tile.i]
-          });
+          socket.broadcast.emit('tiles.updated', STATE.tiles);
         }
       )(tile, player_id);
     });
