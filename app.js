@@ -194,24 +194,6 @@ http.post('/room', authorize, function (req, res, next) {
   }
 });
 
-http.get('/game/single', authorize, function (req, res, next) {
-  var js = ['tile', 'client', 'mouse', 'confirm']
-    , options = { user: req.user
-                , room: null
-                , css: asereje.css()
-                , js: asereje.js(js)
-                };
-
-  require('./game').spawn({
-    io: io
-  , single: true
-  , user: req.user
-  , db: db
-  });
-
-  res.render('room', options);
-});
-
 http.get('/scores', authorize, function (req, res, next) {
   var funk = require('funk')('parallel');
 
@@ -292,9 +274,27 @@ http.get('/scores', authorize, function (req, res, next) {
   }, next);
 });
 
+http.get('/game/single', authorize, function (req, res, next) {
+  var js = ['vendor/uuid', 'tile', 'client', 'mouse', 'confirm']
+    , options = { user: req.user
+                , room: null
+                , css: asereje.css()
+                , js: asereje.js(js)
+                };
+
+  require('./game').spawn({
+    io: io
+  , single: true
+  , user: req.user
+  , db: db
+  });
+
+  res.render('room', options);
+});
+
 http.get('/game/:room_id', authorize, function (req, res, next) {
   var query = {_id: require('mongojs').ObjectId(req.param('room_id'))}
-    , js = ['tile', 'client', 'mouse', 'confirm'];
+    , js = ['vendor/uuid', 'tile', 'client', 'mouse', 'confirm'];
 
   db.rooms.findOne(query, function (error, room) {
     if (error) return next(error);

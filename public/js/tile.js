@@ -73,10 +73,14 @@
   };
 
   TILE.areMatching = function (first_tile, second_tile) {
-    if (first_tile.slice(0, 1) === second_tile.slice(0, 1)) {
-      var is_honor = (first_tile.slice(0, 1) === "h")
-        , first_num = first_tile.slice(1, 2)
-        , second_num = second_tile.slice(1, 2);
+    var first_card = first_tile.cardface
+      , second_card = second_tile.cardface
+      , is_honor, first_num, second_num;
+
+    if (first_card.slice(0, 1) === second_card.slice(0, 1) && first_tile.i !== second_tile.i) {
+      is_honor = (first_card.slice(0, 1) === "h");
+      first_num = first_card.slice(1, 2);
+      second_num = second_card.slice(1, 2);
 
       // honor exception
       if (is_honor) {
@@ -111,7 +115,7 @@
     var free_tiles = TILE.getFreeTiles(tiles), num_pairs = 0, i;
 
     for (i = 0; i < free_tiles.length - 1; i++) {
-      if (TILE.areMatching(free_tiles[i].cardface, free_tiles[i + 1].cardface)) {
+      if (TILE.areMatching(free_tiles[i], free_tiles[i + 1])) {
         i++;
         num_pairs++;
       }
@@ -119,48 +123,57 @@
     return num_pairs;
   };
 
-  TILE.onClicked = function (firstSelection, secondSelection, notMatching) {
+  /**
+   * Returns if the tile is selected or not
+   *
+   * @param {Object} tile
+   * @return {Boolean}
+   */
+  TILE.isSelected = function (tile) {
+    return !!tile.player_ids.length;
+  };
+
+  TILE.onClicked = function (firstSelection, areMatching, notMatching, onError) {
     return function (tile, player_id) {
       var points
-        , player = STATE.players[player_id];
+        , player = STATE.players[player_id]
+        , selected_tile = player.selected_tile;
 
       tile = STATE.tiles[tile.i];
 
       if (TILE.isFree(tile)) {
 
         // First selection
-        if (player.selected_tile === null) {
+        if (selected_tile === null) {
           player.selected_tile = tile;
-          tile.selected = true;
           tile.player_ids.push(player_id);
 
           firstSelection(tile);
 
-        // Second selection
-        } else if (TILE.areMatching(player.selected_tile.cardface, tile.cardface)
-                && !(player.selected_tile.is_deleted || tile.is_deleted)
-                && player.selected_tile.i !== tile.i) {
+        // too late! those tiles are already dead
+        } else if (selected_tile.is_deleted || tile.is_deleted) {
+          onError(tile, selected_tile);
+
+        // are matching
+        } else if (TILE.areMatching(selected_tile, tile)) {
 
           TILE['delete'](tile);
-          TILE['delete'](STATE.tiles[player.selected_tile.i]);
+          TILE['delete'](STATE.tiles[selected_tile.i]);
 
-          tile.selected = true;
-          secondSelection(tile, player.selected_tile, points);
-          _.each(tile.player_ids.concat(player.selected_tile.player_ids), function (player_id) {
+          _.each(tile.player_ids.concat(selected_tile.player_ids), function (player_id) {
             STATE.players[player_id].selected_tile = null;
           });
+
+          areMatching(tile, selected_tile);
+
         // don't match or the same tile
         } else {
-          if (player.selected_tile.i !== tile.i) {
-            delete STATE.tiles[player.selected_tile.i].selected;
-          }
-          STATE.tiles[player.selected_tile.i].player_ids = _.without(
-            STATE.tiles[player.selected_tile.i].player_ids
+          STATE.tiles[selected_tile.i].player_ids = _.without(
+            STATE.tiles[selected_tile.i].player_ids
           , player_id
           );
-          delete STATE.tiles[tile.i].selected;
-          notMatching(tile, player.selected_tile);
           player.selected_tile = null;
+          notMatching(tile, selected_tile);
         }
       }
     };

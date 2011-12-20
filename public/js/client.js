@@ -1,4 +1,4 @@
-/*global Raphael, io, Tile*/
+/*global Raphael, io, Tile, uuid*/
 
 var socket;
 
@@ -13,6 +13,7 @@ $(function () {
     , ALPHA_HIDE = 0.25
     , CANVAS_WIDTH = (ROWS * TILE_WIDTH) + (2 * SIDE_SIZE)
     , CANVAS_HEIGHT = (COLUMNS * TILE_HEIGHT) + (2 * SIDE_SIZE)
+    , UUID = uuid.noConflict()
     , paper = Raphael($('#canvas').get(0), CANVAS_WIDTH, CANVAS_HEIGHT)
     , room_host_id = $('#room_host_id').val()
     , namespace_id = $('#namespace_id').val()
@@ -25,14 +26,14 @@ $(function () {
   socket = io.connect('/' + namespace_id);
 
   emit = _.bind(socket.emit, socket);
-  //if (document.location.hostname === 'localhost') {
-  //  emit = function (ev) {
-  //    var args = arguments;
-  //    setTimeout(function () {
-  //      socket.emit.apply(socket, args);
-  //    }, 5000);
-  //  };
-  //}
+  if (document.location.hostname === 'localhost') {
+    emit = function (ev) {
+      var args = arguments;
+      setTimeout(function () {
+        socket.emit.apply(socket, args);
+      }, 5000);
+    };
+  }
 
   /**
    * Adds the new player to the room view
@@ -174,7 +175,7 @@ $(function () {
    */
   function initGame(STATE) {
     var TILE = Tile(STATE)
-      , svgs = [], images = [], shapes = [], shadows = [];
+      , events = [], svgs = [], images = [], shapes = [], shadows = [];
 
     function setShadows(tile) {
       var shadow = shadows[tile.i]
@@ -280,7 +281,10 @@ $(function () {
 
     function paintAsSelected(tile, color) {
       if (!shapes[tile.i].removed) {
-        shapes[tile.i].attr({fill: color || STATE.players[tile.player_ids[0]].color, 'fill-opacity': 0.5});
+        shapes[tile.i].attr({
+          fill: color || STATE.players[tile.player_ids[tile.player_ids.length - 1]].color
+        , 'fill-opacity': 0.5
+        });
       }
     }
 
@@ -332,7 +336,9 @@ $(function () {
       }
 
       shadowing(tile);
-      svgs[tile.i].remove();
+      svgs[tile.i].attr({opacity: tile.is_deleted ? 0 : 1});
+      // svgs[tile.i].remove();
+      // delete svgs[tile.i];
       makeBetterVisibility(tile, false);
     }
 
@@ -410,16 +416,22 @@ $(function () {
           function firstSelection(tile) {
             document.getElementById('s_click').play();
             paintAsSelected(tile, STATE.players[user_data._id].color);
-            emit('tile.clicked', {tile: tile, player_id: user_data._id});
           }
         , function onMatching(tile, selected_tile, points) {
+            var event = { uuid: UUID.v4()
+                        , tiles: [_.clone(tile), _.clone(selected_tile)]
+                        , player_id: user_data._id
+                        };
+
             document.getElementById('s_gling').play();
             _.each([tile, selected_tile], function (tile) {
               svgs[tile.i].animate({opacity: 0}, 100, '>', function () {
                 onDelete(tile);
               });
             });
-            emit('tile.clicked', {tile: tile, player_id: user_data._id});
+
+            events.push(event);
+            emit('tile.matched', event);
           }
         , function notMatching(tile, selected_tile) {
             document.getElementById('s_grunt').play();
@@ -428,18 +440,20 @@ $(function () {
               onUnselected(selected_tile);
             }
             onUnselected(tile);
-            emit('tile.clicked', {tile: tile, player_id: user_data._id});
           }
+        , function onError() {}
         )(tile, user_data._id);
       });
 
       shape.hover(function () {
-        if (!STATE.tiles[tile.i].selected && TILE.isFree(STATE.tiles[tile.i]) && !STATE.tiles[tile.i].is_deleted) {
+        if (!TILE.isSelected(STATE.tiles[tile.i])
+            && TILE.isFree(STATE.tiles[tile.i])
+            && !STATE.tiles[tile.i].is_deleted) {
           this.attr({'fill-opacity': 0.3});
         }
         makeBetterVisibility(STATE.tiles[tile.i], true);
       }, function () {
-        if (!STATE.tiles[tile.i].selected && !STATE.tiles[tile.i].is_deleted) {
+        if (!TILE.isSelected(STATE.tiles[tile.i]) && !STATE.tiles[tile.i].is_deleted) {
           this.attr({'fill-opacity': 0});
         }
         makeBetterVisibility(STATE.tiles[tile.i], false);
@@ -453,16 +467,12 @@ $(function () {
      */
     function drawTile(tiles, i) {
       if (tiles[i].is_deleted) {
-        if (svgs[i]) {
-          onDelete(tiles[i]);
-        }
+        onDelete(tiles[i]);
       } else {
-        if (!svgs[i]) {
-          renderTile(tiles[i]);
-          setShadows(tiles[i]);
-        }
+        renderTile(tiles[i]);
+        setShadows(tiles[i]);
 
-        if (tiles[i].selected) {
+        if (TILE.isSelected(tiles[i])) {
           paintAsSelected(tiles[i]);
         } else {
           paintAsUnselected(tiles[i]);
@@ -505,12 +515,38 @@ $(function () {
       $('.sidebar .player_' + data.player_id + ' .points').html(data.player_num_pairs);
     });
 
-    socket.removeAllListeners('tiles.updated');
-    socket.on('tiles.updated', function (tiles) {
-      _.each(tiles, function (tile) {
-        if (tile && !_.isEqual(tile, STATE.tiles[tile.i])) {
-          STATE.tiles[tile.i] = tile;
-          drawTile(STATE.tiles, tile.i);
+    socket.removeAllListeners('sync');
+    socket.on('sync', function (server_events) {
+      console.log('sync', Object.keys(server_events).length, _.clone(server_events), _.clone(events));
+
+      _.each(server_events, function (server_event) {
+        var event = _.detect(events, function (e) {
+              return e.uuid === server_event.uuid;
+            });
+
+        if (event) {
+          // rollback
+          if (server_event.type === 'error') {
+            _.each(server_event.tiles, function (tile) {
+              if (!tile.is_deleted) {
+                STATE.tiles[tile.i].is_deleted = false;
+                onDelete(tile);
+              }
+            });
+          }
+          events = _.without(events, event);
+        } else {
+          if (server_event.type !== 'error') {
+            _.each(server_event.tiles, function (tile) {
+              if (STATE.players[user_data._id].selected_tile.i === tile.i) {
+                STATE.players[user_data._id].selected_tile = null;
+              }
+              TILE['delete'](STATE.tiles[tile.i]);
+              svgs[tile.i].animate({opacity: 0}, 100, '>', function () {
+                onDelete(tile);
+              });
+            });
+          }
         }
       });
     });

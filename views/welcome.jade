@@ -30,9 +30,10 @@
       li.room
         a.btn(href= '/game/' + room._id) play
         ul
-          - each player in room.players
-            li.player
-              img(src= player.img, width= '24px', height='24px')
-          - for(var i = 0; i < 6 - room.players.length; i++)
-            li.player.unknown ?
+          - if (room.players)
+            - each player in room.players
+              li.player
+                img(src= player.img, width= '24px', height='24px')
+            - for(var i = 0; i < 6 - room.players.length; i++)
+              li.player.unknown ?
         strong= room.name || 'Room' + i

@@ -8,6 +8,7 @@ module.exports.spawn = function (options) {
 
   function _defaultState() {
     return { tiles: []
+           , events: []
            , time: 0
            , points: 250
            , players: {}
@@ -53,6 +54,7 @@ module.exports.spawn = function (options) {
 
   function _cleanState() {
     clearInterval(STATE.interval);
+    clearInterval(STATE.sync_interval);
     STATE = _defaultState();
     room.removeAllListeners();
   }
@@ -70,6 +72,14 @@ module.exports.spawn = function (options) {
       room_socket.emit('tick', {time: STATE.time, points: STATE.points});
     }
 
+    function _sync() {
+      console.log('sync', STATE.events);
+      room_socket.emit('sync', STATE.events);
+
+      // reset the event stack
+      STATE.events = [];
+    }
+
     // for each game
     function _initState() {
       STATE.tiles = _shuffle(_getDeck());
@@ -83,6 +93,7 @@ module.exports.spawn = function (options) {
       STATE.num_pairs = Tile.getNumPairs(STATE.tiles);
       STATE.remaining_tiles = Tile.TOTAL_TILES;
       STATE.interval = setInterval(_eachSecond, 1000);
+      STATE.sync_interval = setInterval(_sync, 1000);
       STATE.started = true;
       _.each(STATE.players, function (player) {
         player.selected_tile = null;
@@ -90,16 +101,21 @@ module.exports.spawn = function (options) {
       });
     }
 
-    // when a tile is being clicked
-    socket.on('tile.clicked', function (data) {
-      var tile = data.tile
-        , player_id = data.player_id;
+    // when two tiles are matched
+    socket.on('tile.matched', function (data) {
+      var tiles = data.tiles
+        , uuid = data.uuid
+        , player_id = data.player_id
+        , points;
 
-      Tile.onClicked(
-        function (tile) {
-          socket.broadcast.emit('tiles.updated', STATE.tiles);
-        }
-      , function secondSelection(tile, selected_tile, points) {
+      if (STATE.tiles[tiles[0].i].is_deleted || STATE.tiles[tiles[1].i].is_deleted) {
+        STATE.events.push({type: 'error', uuid: uuid});
+
+      // are matching
+      } else if (Tile.areMatching(tiles[0], tiles[1])) {
+
+        _.each(tiles, Tile['delete']);
+
         STATE.remaining_tiles -= 2;
         STATE.num_pairs = Tile.getNumPairs(STATE.tiles);
         points = (Tile.POINTS_PER_SECOND * 3) + Math.ceil(
@@ -113,11 +129,14 @@ module.exports.spawn = function (options) {
         , num_pairs: STATE.num_pairs
         , player_num_pairs: STATE.players[player_id].num_pairs
         });
-        socket.broadcast.emit('tiles.updated', STATE.tiles);
+
+        STATE.events.push(data);
 
         if (!STATE.num_pairs || !STATE.remaining_tiles) {
           STATE.finished = true;
           clearInterval(STATE.interval);
+          clearInterval(STATE.sync_interval);
+          _sync();
 
           // loose
           if (!STATE.remaining_tiles) {
@@ -138,10 +157,6 @@ module.exports.spawn = function (options) {
           }
         }
       }
-      , function noMatching(tile, selected_tile) {
-          socket.broadcast.emit('tiles.updated', STATE.tiles);
-        }
-      )(tile, player_id);
     });
 
     // mouse.js
