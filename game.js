@@ -73,7 +73,6 @@ module.exports.spawn = function (options) {
     }
 
     function _sync() {
-      console.log('sync', STATE.events);
       room_socket.emit('sync', STATE.events);
 
       // reset the event stack
@@ -93,7 +92,7 @@ module.exports.spawn = function (options) {
       STATE.num_pairs = Tile.getNumPairs(STATE.tiles);
       STATE.remaining_tiles = Tile.TOTAL_TILES;
       STATE.interval = setInterval(_eachSecond, 1000);
-      STATE.sync_interval = setInterval(_sync, 1000);
+      STATE.sync_interval = setInterval(_sync, 100);
       STATE.started = true;
       _.each(STATE.players, function (player) {
         player.selected_tile = null;

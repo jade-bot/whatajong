@@ -26,14 +26,14 @@ $(function () {
   socket = io.connect('/' + namespace_id);
 
   emit = _.bind(socket.emit, socket);
-  if (document.location.hostname === 'localhost') {
-    emit = function (ev) {
-      var args = arguments;
-      setTimeout(function () {
-        socket.emit.apply(socket, args);
-      }, 5000);
-    };
-  }
+  //if (document.location.hostname === 'localhost') {
+  //  emit = function (ev) {
+  //    var args = arguments;
+  //    setTimeout(function () {
+  //      socket.emit.apply(socket, args);
+  //    }, 5000);
+  //  };
+  //}
 
   /**
    * Adds the new player to the room view
@@ -517,7 +517,6 @@ $(function () {
 
     socket.removeAllListeners('sync');
     socket.on('sync', function (server_events) {
-      console.log('sync', Object.keys(server_events).length, _.clone(server_events), _.clone(events));
 
       _.each(server_events, function (server_event) {
         var event = _.detect(events, function (e) {
