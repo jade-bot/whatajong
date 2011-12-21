@@ -518,6 +518,7 @@ $(function () {
     socket.removeAllListeners('sync');
     socket.on('sync', function (server_events) {
 
+      //console.log('sync', server_events);
       _.each(server_events, function (server_event) {
         var event = _.detect(events, function (e) {
               return e.uuid === server_event.uuid;
@@ -529,7 +530,7 @@ $(function () {
             _.each(server_event.tiles, function (tile) {
               if (!tile.is_deleted) {
                 STATE.tiles[tile.i].is_deleted = false;
-                onDelete(tile);
+                onDelete(STATE.tiles[tile.i]);
               }
             });
           }
@@ -537,12 +538,13 @@ $(function () {
         } else {
           if (server_event.type !== 'error') {
             _.each(server_event.tiles, function (tile) {
-              if (STATE.players[user_data._id].selected_tile.i === tile.i) {
+              if (STATE.players[user_data._id].selected_tile
+                  && STATE.players[user_data._id].selected_tile.i === tile.i) {
                 STATE.players[user_data._id].selected_tile = null;
               }
               TILE['delete'](STATE.tiles[tile.i]);
               svgs[tile.i].animate({opacity: 0}, 100, '>', function () {
-                onDelete(tile);
+                onDelete(STATE.tiles[tile.i]);
               });
             });
           }

@@ -73,6 +73,7 @@ module.exports.spawn = function (options) {
     }
 
     function _sync() {
+      //console.log('sync', STATE.events);
       room_socket.emit('sync', STATE.events);
 
       // reset the event stack
