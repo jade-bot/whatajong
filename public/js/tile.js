@@ -123,16 +123,6 @@
     return num_pairs;
   };
 
-  /**
-   * Returns if the tile is selected or not
-   *
-   * @param {Object} tile
-   * @return {Boolean}
-   */
-  TILE.isSelected = function (tile) {
-    return !!tile.player_ids.length;
-  };
-
   TILE.onClicked = function (firstSelection, areMatching, notMatching, onError) {
     return function (tile, player_id) {
       var points
@@ -146,7 +136,7 @@
         // First selection
         if (selected_tile === null) {
           player.selected_tile = tile;
-          tile.player_ids.push(player_id);
+          tile.selected = true;
 
           firstSelection(tile);
 
@@ -160,19 +150,14 @@
           TILE['delete'](tile);
           TILE['delete'](STATE.tiles[selected_tile.i]);
 
-          _.each(tile.player_ids.concat(selected_tile.player_ids), function (player_id) {
-            STATE.players[player_id].selected_tile = null;
-          });
+          STATE.players[player_id].selected_tile = null;
 
           areMatching(tile, selected_tile);
 
         // don't match or the same tile
         } else {
-          STATE.tiles[selected_tile.i].player_ids = _.without(
-            STATE.tiles[selected_tile.i].player_ids
-          , player_id
-          );
-          player.selected_tile = null;
+          STATE.tiles[selected_tile.i].selected = false;
+          STATE.players[player_id].selected_tile = null;
           notMatching(tile, selected_tile);
         }
       }

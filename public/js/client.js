@@ -175,6 +175,7 @@ $(function () {
    */
   function initGame(STATE) {
     var TILE = Tile(STATE)
+      , onDelete
       , events = [], svgs = [], images = [], shapes = [], shadows = [];
 
     function setShadows(tile) {
@@ -282,7 +283,7 @@ $(function () {
     function paintAsSelected(tile, color) {
       if (!shapes[tile.i].removed) {
         shapes[tile.i].attr({
-          fill: color || STATE.players[tile.player_ids[tile.player_ids.length - 1]].color
+          fill: color || STATE.players[user_data._id].color
         , 'fill-opacity': 0.5
         });
       }
@@ -310,7 +311,43 @@ $(function () {
       }
     }
 
-    function onDelete(tile) {
+    function onClicked(tile) {
+      return function () {
+        TILE.onClicked(
+          function firstSelection(tile) {
+            document.getElementById('s_click').play();
+            paintAsSelected(tile, STATE.players[user_data._id].color);
+          }
+        , function onMatching(tile, selected_tile, points) {
+            var event = { uuid: UUID.v4()
+                        , tiles: [_.clone(tile), _.clone(selected_tile)]
+                        , player_id: user_data._id
+                        };
+
+            document.getElementById('s_gling').play();
+            _.each([tile, selected_tile], function (tile) {
+              svgs[tile.i].animate({opacity: 0}, 100, '>', function () {
+                onDelete(tile);
+              });
+            });
+
+            events.push(event);
+            emit('tile.matched', event);
+          }
+        , function notMatching(tile, selected_tile) {
+            document.getElementById('s_grunt').play();
+            if (selected_tile.i !== tile.i) {
+              paintAsSelected(tile, STATE.players[user_data._id].color);
+              onUnselected(selected_tile);
+            }
+            onUnselected(tile);
+          }
+        , function onError() {}
+        )(tile, user_data._id);
+      };
+    }
+
+    onDelete = function onDelete(tile) {
       function shadowing(tile) {
         _.each(TILE.getLeftTiles(tile), function (el) {
           if (!STATE.tiles[el].is_deleted) {
@@ -337,10 +374,27 @@ $(function () {
 
       shadowing(tile);
       svgs[tile.i].attr({opacity: tile.is_deleted ? 0 : 1});
+      svgs[tile.i].forEach(function (el) {
+        el.node.style['pointer-events'] = tile.is_deleted ? 'none' : 'auto';
+        el.attr({cursor: tile.is_deleted ? 'auto' : 'pointer'});
+      });
+      if (tile.is_deleted) {
+        _.each(shapes[tile.i].events, function (event, i) {
+          if (event.name === 'click') {
+            event.unbind();
+            shapes[tile.i].events.splice(i, 1);
+            if (!shapes[tile.i].events.length) {
+              delete shapes[tile.i].events;
+            }
+          }
+        });
+      } else {
+        shapes[tile.i].click(onClicked(tile));
+      }
       // svgs[tile.i].remove();
       // delete svgs[tile.i];
       makeBetterVisibility(tile, false);
-    }
+    };
 
     function renderTile(tile) {
       var coords = _getRealCoordinates(tile)
@@ -411,49 +465,17 @@ $(function () {
       , right_both: shadow_right_both
       };
 
-      shape.click(function (event) {
-        TILE.onClicked(
-          function firstSelection(tile) {
-            document.getElementById('s_click').play();
-            paintAsSelected(tile, STATE.players[user_data._id].color);
-          }
-        , function onMatching(tile, selected_tile, points) {
-            var event = { uuid: UUID.v4()
-                        , tiles: [_.clone(tile), _.clone(selected_tile)]
-                        , player_id: user_data._id
-                        };
-
-            document.getElementById('s_gling').play();
-            _.each([tile, selected_tile], function (tile) {
-              svgs[tile.i].animate({opacity: 0}, 100, '>', function () {
-                onDelete(tile);
-              });
-            });
-
-            events.push(event);
-            emit('tile.matched', event);
-          }
-        , function notMatching(tile, selected_tile) {
-            document.getElementById('s_grunt').play();
-            if (selected_tile.i !== tile.i) {
-              paintAsSelected(tile, STATE.players[user_data._id].color);
-              onUnselected(selected_tile);
-            }
-            onUnselected(tile);
-          }
-        , function onError() {}
-        )(tile, user_data._id);
-      });
+      shape.click(onClicked(tile));
 
       shape.hover(function () {
-        if (!TILE.isSelected(STATE.tiles[tile.i])
+        if (!STATE.tiles[tile.i].selected
             && TILE.isFree(STATE.tiles[tile.i])
             && !STATE.tiles[tile.i].is_deleted) {
           this.attr({'fill-opacity': 0.3});
         }
         makeBetterVisibility(STATE.tiles[tile.i], true);
       }, function () {
-        if (!TILE.isSelected(STATE.tiles[tile.i]) && !STATE.tiles[tile.i].is_deleted) {
+        if (!STATE.tiles[tile.i].selected && !STATE.tiles[tile.i].is_deleted) {
           this.attr({'fill-opacity': 0});
         }
         makeBetterVisibility(STATE.tiles[tile.i], false);
@@ -472,7 +494,7 @@ $(function () {
         renderTile(tiles[i]);
         setShadows(tiles[i]);
 
-        if (TILE.isSelected(tiles[i])) {
+        if (tiles[i].selected) {
           paintAsSelected(tiles[i]);
         } else {
           paintAsUnselected(tiles[i]);

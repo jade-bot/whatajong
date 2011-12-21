@@ -39,7 +39,6 @@ module.exports.spawn = function (options) {
           if (map[z][y][x] && !same_as_prev && !same_as_above) {
             tiles[i] = {
               cardface: tiles[i]
-            , player_ids: []
             , i: map[z][y][x]
             , x: x
             , y: y
@@ -114,7 +113,9 @@ module.exports.spawn = function (options) {
       // are matching
       } else if (Tile.areMatching(tiles[0], tiles[1])) {
 
-        _.each(tiles, Tile['delete']);
+        _.each(tiles, function (tile) {
+          Tile['delete'](STATE.tiles[tile.i]);
+        });
 
         STATE.remaining_tiles -= 2;
         STATE.num_pairs = Tile.getNumPairs(STATE.tiles);
